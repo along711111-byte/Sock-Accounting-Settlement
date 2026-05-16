@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>輕職人 - 車縫雲端記帳</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>輕職人 - 車縫記帳 (單機版)</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,25 +14,24 @@
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .pb-safe { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
-        .sync-active { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        /* 加大底部預留空間，以免內容被懸浮按鈕擋住 */
+        .pb-safe { padding-bottom: calc(170px + env(safe-area-inset-bottom)); } 
+        
+        .btn-press:active { transform: scale(0.95); box-shadow: 0 0 0 rgba(0,0,0,0); margin-top: 4px; }
     </style>
 </head>
 <body class="text-slate-900 selection:bg-slate-200">
 
-    <div id="app" class="max-w-md mx-auto bg-white min-h-screen relative flex flex-col shadow-2xl" style="display: none;">
+    <div id="app" class="max-w-md mx-auto bg-white min-h-screen relative flex flex-col shadow-2xl">
         
-        <header class="bg-slate-900 text-white p-4 text-center font-bold tracking-widest sticky top-0 z-50 flex justify-between items-center shadow-lg">
-            <div class="flex items-center w-16">
-                <div :class="['h-2.5 w-2.5 rounded-full mr-2', dbReady ? 'bg-green-500' : 'bg-red-500 sync-active']"></div>
-                <span class="text-[10px] font-bold text-slate-400">{{ dbReady ? '已連線' : '同步中' }}</span>
-            </div>
-            <span class="text-lg">車縫雲端記帳</span>
-            <div class="w-16"></div>
+        <header class="bg-slate-900 text-white p-4 text-center font-bold tracking-widest sticky top-0 z-50 flex justify-center items-center shadow-lg">
+            <span class="text-lg flex items-center">
+                車縫記帳系統 
+                <span class="ml-2 text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full">v5.3 懸浮按鈕版</span>
+            </span>
         </header>
 
-        <div v-show="currentTab === 'input'" class="p-5 space-y-6 pb-safe flex-1 overflow-y-auto no-scrollbar">
+        <div v-show="currentTab === 'input'" class="p-5 space-y-5 pb-safe flex-1 overflow-y-auto no-scrollbar">
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -42,18 +44,18 @@
                         <select v-model="form.worker" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm font-bold focus:border-slate-800 outline-none">
                             <option v-for="w in workers" :key="w" :value="w">{{ w }}</option>
                         </select>
-                        <button @click="isAddingWorker = true" class="bg-slate-200 px-3 rounded-xl hover:bg-slate-300 text-lg">+</button>
+                        <button type="button" @click="isAddingWorker = true" class="bg-slate-200 px-3 rounded-xl hover:bg-slate-300 text-lg">+</button>
                     </div>
                     <div v-else class="flex space-x-2">
                         <input v-model="newWorkerName" type="text" placeholder="姓名" class="w-full bg-white border-2 border-slate-400 rounded-xl p-2 text-sm">
-                        <button @click="confirmAddWorker" class="bg-slate-800 text-white px-3 rounded-xl text-xs">確認</button>
+                        <button type="button" @click="confirmAddWorker" class="bg-slate-800 text-white px-3 rounded-xl text-xs">新增</button>
                     </div>
                 </div>
             </div>
 
             <div>
                 <div class="flex flex-wrap gap-2">
-                    <button v-for="item in items" :key="item.name" @click="form.item = item.name" 
+                    <button type="button" v-for="item in items" :key="item.name" @click="form.item = item.name" 
                             :class="['px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all', form.item === item.name ? item.activeClass : 'bg-white border-slate-200 text-slate-500']">
                         {{ item.name }}
                     </button>
@@ -62,58 +64,48 @@
 
             <hr class="border-slate-100 border-2">
 
-            <div class="space-y-6">
+            <div class="space-y-6 bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-base text-slate-800">打數</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.dozens" class="w-16 text-center text-lg font-bold bg-slate-50 border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
+                            <input type="number" v-model.number="form.dozens" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
                             <span class="text-sm text-slate-500">打</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-5 gap-2">
-                        <button v-for="v in [15,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-3 rounded-xl border-2 font-bold', form.dozens === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
+                        <button type="button" v-for="v in [15,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.dozens === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-base text-slate-800">零星雙數</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-slate-50 border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
+                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
                             <span class="text-sm text-slate-500">雙</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-6 gap-2">
-                        <button v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-3 rounded-xl border-2 font-bold', form.pairs === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
+                        <button type="button" v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.pairs === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-base text-slate-800">包數 (乘數)</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.packages" class="w-16 text-center text-lg font-bold bg-slate-50 border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
+                            <input type="number" v-model.number="form.packages" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
                             <span class="text-sm text-slate-500">包</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-4 gap-2">
-                        <button v-for="v in [1,2,3,4,5,6,7,8]" :key="v" @click="form.packages = v" :class="['py-3 rounded-xl border-2 font-bold', form.packages === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">x{{ v }}</button>
+                        <button type="button" v-for="v in [1,2,3,4,5,6,7,8]" :key="v" @click="form.packages = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.packages === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">x{{ v }}</button>
                     </div>
                 </div>
-            </div>
+            </div> 
 
-            <div class="mt-6 border-t-2 border-slate-100 pt-6">
-                <div class="flex justify-between items-center bg-slate-50 p-4 rounded-xl border-2 border-slate-100 mb-4">
-                    <span class="text-sm text-slate-500">本次計算結果</span>
-                    <span class="text-2xl font-black text-slate-900">{{ currentDisplay }}</span>
-                </div>
-                <button @click.prevent="saveRecord" :disabled="isSaving" class="w-full bg-slate-900 hover:bg-slate-800 text-white h-16 rounded-xl font-bold tracking-widest shadow-lg active:scale-95 transition-all text-lg disabled:opacity-50">
-                    {{ isSaving ? '雲端傳送中...' : '立即儲存紀錄' }}
-                </button>
-            </div>
-
-            <div v-if="recentRecords.length" class="space-y-2 mt-8">
+            <div v-if="recentRecords.length" class="space-y-2 mt-4">
                 <div class="text-xs text-slate-400 font-bold tracking-widest flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>剛成功存入雲端的紀錄
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>剛成功存入的紀錄
                 </div>
                 <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                     <div>
@@ -128,7 +120,7 @@
         <div v-show="currentTab === 'report'" class="p-5 pb-safe flex-1 overflow-y-auto bg-slate-50">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-black">{{ showSettled ? '歷史紀錄 (已結算)' : '未結算報表' }}</h2>
-                <button @click="showSettled = !showSettled" class="text-xs font-bold text-indigo-600 border-2 border-indigo-100 px-3 py-2 rounded-lg bg-white active:bg-indigo-50">
+                <button type="button" @click="showSettled = !showSettled" class="text-xs font-bold text-indigo-600 border-2 border-indigo-100 px-3 py-2 rounded-lg bg-white active:bg-indigo-50">
                     {{ showSettled ? '返回未結算' : '查看歷史紀錄' }}
                 </button>
             </div>
@@ -152,24 +144,33 @@
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-50">
                         <span class="text-xs font-bold text-slate-500">明細: {{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }}包</span>
-                        <button @click="deleteRecord(r.id)" class="text-red-500 bg-red-50 px-3 py-1 rounded-lg text-xs font-bold active:bg-red-100">刪除</button>
+                        <button type="button" @click="deleteRecord(r.id)" class="text-red-500 bg-red-50 px-3 py-1 rounded-lg text-xs font-bold active:bg-red-100">刪除</button>
                     </div>
                 </div>
                 <div v-if="!showSettled" class="p-4 bg-indigo-50 border-t border-indigo-100">
-                    <button @click="openSettle(group.name, group.list)" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all flex justify-center items-center">
+                    <button type="button" @click="openSettle(group.name, group.list)" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all flex justify-center items-center">
                         進行結算與隱藏
                     </button>
                 </div>
             </div>
         </div>
 
+        <div v-show="currentTab === 'input'" class="fixed bottom-[68px] left-0 right-0 max-w-md mx-auto p-4 bg-white/90 backdrop-blur-md border-t border-slate-100 z-30 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.1)]">
+            <button type="button" @click.prevent="saveRecord" class="w-full bg-indigo-600 text-white rounded-2xl flex flex-col items-center justify-center py-3 shadow-[0_4px_0_0_#4f46e5] btn-press transition-all relative">
+                <span class="text-2xl font-black tracking-widest mb-1">確 定 儲 存</span>
+                <span class="text-xs font-bold bg-indigo-800 px-3 py-1 rounded-full shadow-inner">
+                    本次總計：{{ currentDisplay }}
+                </span>
+            </button>
+        </div>
+
         <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-slate-100 flex justify-around pb-safe z-40 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
-            <button @click="currentTab = 'input'; showSettled = false;" :class="['flex-1 py-4 flex flex-col items-center space-y-1', currentTab === 'input' ? 'text-slate-900' : 'text-slate-300']">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <button type="button" @click="currentTab = 'input'; showSettled = false;" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'input' ? 'text-slate-900' : 'text-slate-300']">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 <span class="text-[10px] font-bold tracking-widest">記帳</span>
             </button>
-            <button @click="currentTab = 'report'" :class="['flex-1 py-4 flex flex-col items-center space-y-1', currentTab === 'report' ? 'text-slate-900' : 'text-slate-300']">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <button type="button" @click="currentTab = 'report'" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'report' ? 'text-slate-900' : 'text-slate-300']">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 <span class="text-[10px] font-bold tracking-widest">報表</span>
             </button>
         </nav>
@@ -191,41 +192,37 @@
                     </label>
                 </div>
                 <div class="p-4 flex space-x-3 border-t border-slate-100">
-                    <button @click="settleModal = false" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold text-slate-500 active:bg-slate-200">取消</button>
-                    <button @click="confirmSettle" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:bg-indigo-700">雲端結算 ({{ settleSelected.length }})</button>
+                    <button type="button" @click="settleModal = false" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold text-slate-500 active:bg-slate-200">取消</button>
+                    <button type="button" @click="confirmSettle" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:bg-indigo-700">確認結算 ({{ settleSelected.length }})</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch, setDoc, query, orderBy } 
-            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDU2eAMCLTvbcofC5N7l_qOufvkK78N1h8",
-            authDomain: "sock-accounting-settlement.firebaseapp.com",
-            projectId: "sock-accounting-settlement",
-            storageBucket: "sock-accounting-settlement.firebasestorage.app",
-            messagingSenderId: "571398198878",
-            appId: "1:571398198878:web:82e860609168ffc6a686cf"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        const { createApp, ref, computed, onMounted } = Vue;
+    <script>
+        const { createApp, ref, computed, watch } = Vue;
 
         createApp({
             setup() {
                 const currentTab = ref('input');
-                const dbReady = ref(false);
-                const isSaving = ref(false);
                 const showSettled = ref(false);
 
-                const workers = ref([]);
-                const records = ref([]);
+                let initWorkers = ['永靖劉小姐', '社頭王阿姨'];
+                try {
+                    const savedW = localStorage.getItem('litepro_workers_v5');
+                    if (savedW) initWorkers = JSON.parse(savedW);
+                } catch(e) {}
+                const workers = ref(initWorkers);
+                
+                let initRecords = [];
+                try {
+                    const savedR = localStorage.getItem('litepro_records_v5');
+                    if (savedR) initRecords = JSON.parse(savedR);
+                } catch(e) {}
+                const records = ref(initRecords);
+
+                watch(workers, (newVal) => localStorage.setItem('litepro_workers_v5', JSON.stringify(newVal)), { deep: true });
+                watch(records, (newVal) => localStorage.setItem('litepro_records_v5', JSON.stringify(newVal)), { deep: true });
                 
                 const items = [
                     { name: '襪子', activeClass: 'bg-indigo-600 text-white border-indigo-600 shadow-md' },
@@ -240,36 +237,17 @@
                 };
 
                 const form = ref({
-                    date: getToday(), worker: '', item: '襪子', dozens: 0, pairs: 0, packages: 1
-                });
-
-                onMounted(() => {
-                    // 1. 車工名單
-                    onSnapshot(doc(db, 'settings', 'workerList'), (snap) => {
-                        if (snap.exists()) {
-                            workers.value = snap.data().names;
-                            if (!form.value.worker && workers.value.length > 0) form.value.worker = workers.value[0];
-                        } else {
-                            setDoc(doc(db, 'settings', 'workerList'), { names: ['永靖劉小姐', '社頭王阿姨'] });
-                        }
-                        dbReady.value = true;
-                        document.getElementById('app').style.display = 'flex';
-                    });
-
-                    // 2. 記帳明細
-                    const q = query(collection(db, 'records'), orderBy('timestamp', 'desc'));
-                    onSnapshot(q, (snap) => {
-                        records.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                    });
+                    date: getToday(), 
+                    worker: workers.value[0] || '', 
+                    item: '襪子', dozens: 0, pairs: 0, packages: 1
                 });
 
                 const isAddingWorker = ref(false);
                 const newWorkerName = ref('');
-                const confirmAddWorker = async () => {
+                const confirmAddWorker = () => {
                     const name = newWorkerName.value.trim();
                     if (name && !workers.value.includes(name)) {
-                        const newNames = [...workers.value, name];
-                        await updateDoc(doc(db, 'settings', 'workerList'), { names: newNames });
+                        workers.value.push(name);
                         form.value.worker = name;
                     }
                     newWorkerName.value = ''; isAddingWorker.value = false;
@@ -284,53 +262,37 @@
                     return `${d} 打 ${p} 雙`;
                 };
 
-                // === 最關鍵的修復邏輯 ===
-                const saveRecord = async () => {
+                const saveRecord = () => {
                     const d = Number(form.value.dozens) || 0;
                     const p = Number(form.value.pairs) || 0;
-                    const pk = Number(form.value.packages) || 1; // 預防包數變0的防呆
+                    const pk = Number(form.value.packages) || 1;
                     const total = ((d * 12) + p) * pk;
 
                     if (total === 0) { 
-                        alert('⚠️ 請輸入打數或雙數！'); 
+                        alert('⚠️ 數量不能為零，請輸入打數或雙數！'); 
                         return; 
                     }
                     
-                    isSaving.value = true;
-                    try {
-                        // 強制轉換為「最純淨的文字和數字」，杜絕 Vue Proxy 被 Firebase 拒收
-                        const pureData = {
-                            date: String(form.value.date),
-                            worker: String(form.value.worker || '未命名'),
-                            item: String(form.value.item),
-                            dozens: d,
-                            pairs: p,
-                            packages: pk,
-                            totalPairs: total,
-                            status: 'pending',
-                            timestamp: Date.now()
-                        };
-
-                        await addDoc(collection(db, 'records'), pureData);
-                        
-                        form.value.dozens = 0; 
-                        form.value.pairs = 0; 
-                        form.value.packages = 1;
-                        
-                        // 恢復您最熟悉的彈跳視窗，這也是保證網路傳輸 100% 跑完的最佳防線！
-                        alert('✅ 資料已成功寫入雲端！\n\n(看到此視窗代表 100% 存檔完畢，可以安心關閉畫面)');
-                    } catch (e) {
-                        alert('❌ 儲存失敗，系統攔截到錯誤：\n' + e.message);
-                        console.error(e);
-                    } finally {
-                        isSaving.value = false;
-                    }
+                    records.value.unshift({
+                        id: Date.now(),
+                        date: String(form.value.date),
+                        worker: String(form.value.worker || '未命名'),
+                        item: String(form.value.item),
+                        dozens: d, pairs: p, packages: pk, totalPairs: total,
+                        status: 'pending', timestamp: Date.now()
+                    });
+                    
+                    form.value.dozens = 0; 
+                    form.value.pairs = 0; 
+                    form.value.packages = 1;
+                    
+                    alert('✅ 紀錄已確定存檔！');
                 };
 
-                const deleteRecord = async (id) => {
-                    if (confirm('確定要刪除這筆紀錄嗎？(雲端資料將永久移除)')) {
-                        await deleteDoc(doc(db, 'records', id));
-                        alert('🗑️ 紀錄已成功刪除');
+                const deleteRecord = (id) => {
+                    if (confirm('確定要刪除這筆紀錄嗎？')) {
+                        records.value = records.value.filter(r => r.id !== id);
+                        alert('🗑️ 已刪除');
                     }
                 };
 
@@ -356,26 +318,22 @@
                     settleModal.value = true;
                 };
 
-                const confirmSettle = async () => {
-                    if(settleSelected.value.length === 0) { alert('⚠️ 請至少勾選一筆要結算的單子'); return; }
-                    try {
-                        const batch = writeBatch(db);
-                        settleSelected.value.forEach(id => {
-                            batch.update(doc(db, 'records', id), { 
-                                status: 'settled', 
-                                settledDate: new Date().toISOString() 
-                            });
-                        });
-                        await batch.commit();
-                        settleModal.value = false;
-                        alert('🎉 結算成功！資料已隱藏至歷史區');
-                    } catch(e) {
-                        alert('❌ 結算失敗：' + e.message);
-                    }
+                const confirmSettle = () => {
+                    if(settleSelected.value.length === 0) { alert('⚠️ 請勾選項目'); return; }
+                    
+                    records.value = records.value.map(r => {
+                        if(settleSelected.value.includes(r.id)) {
+                            return { ...r, status: 'settled', settledDate: new Date().toISOString() };
+                        }
+                        return r;
+                    });
+                    
+                    settleModal.value = false;
+                    alert('🎉 結算完成！資料已隱藏至歷史區。');
                 };
 
                 return {
-                    currentTab, dbReady, isSaving, showSettled,
+                    currentTab, showSettled,
                     workers, records, items, form, isAddingWorker, newWorkerName,
                     confirmAddWorker, formatTotal, saveRecord, deleteRecord,
                     displayGroups, settleModal, settleTarget, settleSelected, openSettle, confirmSettle,
