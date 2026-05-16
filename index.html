@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>輕職人 - 車縫記帳 (視角優化版)</title>
+    <title>輕職人 - 車縫記帳 (雲端旗艦版)</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -14,16 +14,17 @@
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* 基礎防擋底座 */
         .pb-safe-content { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
         .btn-press:active { transform: scale(0.95); box-shadow: 0 0 0 rgba(0,0,0,0); margin-top: 4px; }
         .toast-enter-active, .toast-leave-active { transition: opacity 0.4s, transform 0.4s; }
         .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, -20px); }
+        .sync-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
     </style>
 </head>
 <body class="text-stone-800 selection:bg-orange-200">
 
-    <div id="app" class="max-w-md mx-auto bg-[#FDF9F1] min-h-screen relative flex flex-col shadow-2xl">
+    <div id="app" class="max-w-md mx-auto bg-[#FDF9F1] min-h-screen relative flex flex-col shadow-2xl" style="display: none;">
         
         <transition name="toast">
             <div v-if="toastMsg" class="fixed top-20 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl z-[250] text-sm font-bold tracking-widest whitespace-nowrap pointer-events-none">
@@ -32,9 +33,13 @@
         </transition>
 
         <header class="bg-[#CC5A50] text-white p-4 text-center font-bold tracking-widest sticky top-0 z-50 flex justify-center items-center shadow-md">
+            <div class="absolute left-4 flex items-center space-x-1">
+                <div :class="['h-2.5 w-2.5 rounded-full', dbReady ? 'bg-green-400' : 'bg-red-400 sync-pulse']"></div>
+                <span class="text-[9px] font-bold opacity-80">{{ dbReady ? '已連線' : '連線中' }}</span>
+            </div>
             <span class="text-lg flex items-center">
                 車縫記帳 
-                <span class="ml-2 text-[10px] bg-[#a84439] text-white px-2 py-0.5 rounded-full shadow-inner">v12.0 視角優化版</span>
+                <span class="ml-2 text-[10px] bg-[#a84439] text-white px-2 py-0.5 rounded-full shadow-inner">v14.0 雲端旗艦</span>
             </span>
         </header>
 
@@ -76,22 +81,11 @@
                             <span class="text-sm font-bold text-stone-500">打</span>
                         </div>
                     </div>
-                    <div class="grid grid-cols-5 gap-2">
-                        <button type="button" v-for="v in [15,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.dozens === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button type="button" v-for="v in [15,25,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.dozens === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
                     </div>
                 </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-base font-black text-[#CC5A50]">零星雙數</span>
-                        <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-[#FDF9F1] border-2 border-[#EEDDCC] rounded-lg p-1 focus:border-[#CC5A50] text-stone-800">
-                            <span class="text-sm font-bold text-stone-500">雙</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-6 gap-2">
-                        <button type="button" v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.pairs === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
-                    </div>
-                </div>
+
                 <div>
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-base font-black text-[#CC5A50]">包數 (乘數)</span>
@@ -104,11 +98,24 @@
                         <button type="button" v-for="v in [1,2,3,4,5,6,7,8]" :key="v" @click="form.packages = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.packages === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">x{{ v }}</button>
                     </div>
                 </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-base font-black text-[#CC5A50]">零星雙數</span>
+                        <div class="flex items-center space-x-1">
+                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-[#FDF9F1] border-2 border-[#EEDDCC] rounded-lg p-1 focus:border-[#CC5A50] text-stone-800">
+                            <span class="text-sm font-bold text-stone-500">雙</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-6 gap-2">
+                        <button type="button" v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.pairs === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
+                    </div>
+                </div>
             </div> 
 
             <div v-if="recentRecords.length" class="space-y-3 mt-6">
                 <div class="text-xs text-[#CC5A50] font-black tracking-widest flex items-center">
-                    <span class="w-2 h-2 bg-[#CC5A50] rounded-full mr-2"></span>剛存入的明細
+                    <span class="w-2 h-2 bg-[#CC5A50] rounded-full mr-2"></span>雲端最新明細
                 </div>
                 <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-xl border border-[#EEDDCC] shadow-sm flex justify-between items-center">
                     <div>
@@ -123,7 +130,6 @@
             </div>
 
             <div class="h-40 w-full opacity-0 pointer-events-none"></div>
-
         </div>
 
         <div v-show="currentTab === 'report'" class="p-5 pb-safe-content flex-1 overflow-y-auto bg-[#FDF9F1]">
@@ -139,7 +145,7 @@
 
             <div v-if="reportMode === 'list'">
                 <div v-if="workerDirectory.length === 0" class="text-center py-20 text-stone-300 font-bold bg-white rounded-2xl border-2 border-dashed border-[#EEDDCC]">
-                    目前沒有紀錄資料
+                    雲端目前沒有紀錄資料
                 </div>
                 
                 <div class="space-y-4">
@@ -166,7 +172,6 @@
             </div>
 
             <div v-if="reportMode === 'detail'">
-                
                 <button @click="reportMode = 'list'" class="flex items-center text-sm font-bold text-stone-500 mb-4 hover:text-[#CC5A50]">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
                     返回目錄
@@ -220,8 +225,8 @@
                         </div>
                     </div>
 
-                    <button @click="settleActiveWorker" class="w-full bg-[#CC5A50] text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 text-xl tracking-widest">
-                        將「{{ activeWorkerName }}」帳目結算
+                    <button @click="settleActiveWorker" :disabled="isProcessing" class="w-full bg-[#CC5A50] text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 text-xl tracking-widest disabled:opacity-50">
+                        {{ isProcessing ? '雲端結算中...' : `將「${activeWorkerName}」帳目結算` }}
                     </button>
                 </div>
 
@@ -270,8 +275,8 @@
         </div>
 
         <div v-show="currentTab === 'input'" class="fixed left-0 right-0 max-w-md mx-auto p-4 bg-[#FDF9F1]/95 backdrop-blur-md border-t-2 border-[#EEDDCC] shadow-[0_-15px_30px_-15px_rgba(204,90,80,0.15)] z-50" style="bottom: calc(64px + env(safe-area-inset-bottom));">
-            <button type="button" @click.prevent="saveRecord" class="w-full bg-[#CC5A50] text-white rounded-2xl flex flex-col items-center justify-center py-3 shadow-[0_5px_0_0_#a84439] btn-press transition-all relative">
-                <span class="text-2xl font-black tracking-widest mb-1">確 定 存 檔</span>
+            <button type="button" @click.prevent="saveRecord" :disabled="isProcessing" class="w-full bg-[#CC5A50] text-white rounded-2xl flex flex-col items-center justify-center py-3 shadow-[0_5px_0_0_#a84439] btn-press transition-all relative disabled:opacity-70">
+                <span class="text-2xl font-black tracking-widest mb-1">{{ isProcessing ? '連線同步中...' : '確 定 存 檔' }}</span>
                 <span class="text-xs font-bold bg-[#a84439] px-3 py-1 rounded-full shadow-inner">
                     本次紀錄：{{ currentDisplay }}
                 </span>
@@ -295,12 +300,12 @@
                 <div class="p-4 space-y-3">
                     <div class="flex space-x-2">
                         <input v-model="newWorkerName" type="text" placeholder="輸入新車工姓名" class="w-full bg-white border-2 border-[#EEDDCC] rounded-xl p-2 text-sm outline-none focus:border-[#CC5A50] font-bold">
-                        <button type="button" @click="confirmAddWorker" class="bg-stone-800 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap btn-press">新增</button>
+                        <button type="button" @click="confirmAddWorker" :disabled="isProcessing" class="bg-stone-800 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap btn-press disabled:opacity-50">新增</button>
                     </div>
                     <div class="max-h-60 overflow-y-auto divide-y divide-[#EEDDCC] border-2 border-[#EEDDCC] rounded-xl p-2 bg-[#FDF9F1] no-scrollbar">
                         <div v-for="w in workers" :key="w" class="flex justify-between items-center py-2.5 px-2 text-sm font-bold text-stone-700">
                             <span>{{ w }}</span>
-                            <button type="button" @click="deleteWorker(w)" class="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg font-black shadow-sm active:scale-95 transition-transform">
+                            <button type="button" @click="deleteWorker(w)" :disabled="isProcessing" class="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg font-black shadow-sm active:scale-95 transition-transform disabled:opacity-50">
                                 刪除清空
                             </button>
                         </div>
@@ -314,8 +319,25 @@
 
     </div>
 
-    <script>
-        const { createApp, ref, computed, watch } = Vue;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, query, orderBy, writeBatch, getDocs, where } 
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 您的專屬雲端金鑰
+        const firebaseConfig = {
+            apiKey: "AIzaSyDU2eAMCLTvbcofC5N7l_qOufvkK78N1h8",
+            authDomain: "sock-accounting-settlement.firebaseapp.com",
+            projectId: "sock-accounting-settlement",
+            storageBucket: "sock-accounting-settlement.firebasestorage.app",
+            messagingSenderId: "571398198878",
+            appId: "1:571398198878:web:82e860609168ffc6a686cf"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
@@ -325,6 +347,10 @@
                 const activeWorkerName = ref('');
                 const toastMsg = ref('');
                 const showWorkerModal = ref(false);
+                
+                // 雲端連線與處理狀態
+                const dbReady = ref(false);
+                const isProcessing = ref(false);
 
                 const itemOrder = ['襪子', '手套', '寬口襪', '其他'];
 
@@ -333,22 +359,30 @@
                     setTimeout(() => toastMsg.value = '', 1500); 
                 };
 
-                let initWorkers = ['永靖劉小姐', '社頭王阿姨'];
-                try {
-                    const savedW = localStorage.getItem('litepro_workers_v7');
-                    if (savedW) initWorkers = JSON.parse(savedW);
-                } catch(e) {}
-                const workers = ref(initWorkers);
-                
-                let initRecords = [];
-                try {
-                    const savedR = localStorage.getItem('litepro_records_v7');
-                    if (savedR) initRecords = JSON.parse(savedR);
-                } catch(e) {}
-                const records = ref(initRecords);
+                const workers = ref([]);
+                const records = ref([]);
 
-                watch(workers, (newVal) => localStorage.setItem('litepro_workers_v7', JSON.stringify(newVal)), { deep: true });
-                watch(records, (newVal) => localStorage.setItem('litepro_records_v7', JSON.stringify(newVal)), { deep: true });
+                // ✅ 系統啟動：掛載雲端資料監聽器
+                onMounted(() => {
+                    // 1. 監聽車工名單
+                    onSnapshot(doc(db, 'settings', 'workerList'), (snap) => {
+                        if (snap.exists()) {
+                            workers.value = snap.data().names || [];
+                            if (!form.value.worker && workers.value.length > 0) form.value.worker = workers.value[0];
+                        } else {
+                            // 第一次使用，建立預設資料
+                            setDoc(doc(db, 'settings', 'workerList'), { names: ['永靖劉小姐', '社頭王阿姨'] });
+                        }
+                    });
+
+                    // 2. 監聽所有記帳紀錄 (按時間排序)
+                    const q = query(collection(db, 'records'), orderBy('timestamp', 'desc'));
+                    onSnapshot(q, (snap) => {
+                        records.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                        dbReady.value = true;
+                        document.getElementById('app').style.display = 'flex';
+                    });
+                });
                 
                 const items = [
                     { name: '襪子', activeClass: 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' },
@@ -371,27 +405,54 @@
 
                 const form = ref({
                     date: getToday(), 
-                    worker: workers.value[0] || '', 
+                    worker: '', 
                     item: '襪子', dozens: 0, pairs: 0, packages: 1
                 });
 
                 const newWorkerName = ref('');
-                const confirmAddWorker = () => {
+                
+                // 雲端功能：新增車工
+                const confirmAddWorker = async () => {
                     const name = newWorkerName.value.trim();
                     if (name && !workers.value.includes(name)) {
-                        workers.value.push(name);
-                        form.value.worker = name;
-                        showToast(`✅ 已新增車工 ${name}`);
+                        isProcessing.value = true;
+                        try {
+                            const newNames = [...workers.value, name];
+                            await setDoc(doc(db, 'settings', 'workerList'), { names: newNames });
+                            form.value.worker = name;
+                            showToast(`✅ 已新增車工 ${name}`);
+                        } catch (e) {
+                            showToast('❌ 新增失敗，請檢查網路');
+                        } finally {
+                            isProcessing.value = false;
+                        }
                     }
                     newWorkerName.value = '';
                 };
 
-                const deleteWorker = (name) => {
-                    if(confirm(`確定要將車工「${name}」從名單中刪除嗎？\n\n⚠️ 按「確定」將會連同他/她的【所有未結與歷史紀錄】一併清空不可復原！`)) {
-                        workers.value = workers.value.filter(w => w !== name);
-                        records.value = records.value.filter(r => r.worker !== name);
-                        if (form.value.worker === name) form.value.worker = workers.value[0] || '';
-                        showToast(`🗑️ 已刪除車工 ${name} 及所有紀錄`);
+                // 雲端功能：刪除車工及雲端紀錄
+                const deleteWorker = async (name) => {
+                    if(confirm(`確定要將車工「${name}」從雲端刪除嗎？\n\n⚠️ 將連同他/她的【所有紀錄】一併清空不可復原！`)) {
+                        isProcessing.value = true;
+                        try {
+                            // 1. 更新名單
+                            const newNames = workers.value.filter(w => w !== name);
+                            await setDoc(doc(db, 'settings', 'workerList'), { names: newNames });
+                            
+                            // 2. 批次刪除該車工的雲端紀錄
+                            const q = query(collection(db, 'records'), where('worker', '==', name));
+                            const snap = await getDocs(q);
+                            const batch = writeBatch(db);
+                            snap.forEach(d => batch.delete(d.ref));
+                            await batch.commit();
+
+                            if (form.value.worker === name) form.value.worker = workers.value[0] || '';
+                            showToast(`🗑️ 已從雲端徹底刪除 ${name}`);
+                        } catch (e) {
+                            showToast('❌ 刪除失敗');
+                        } finally {
+                            isProcessing.value = false;
+                        }
                     }
                 };
 
@@ -413,7 +474,8 @@
                     return text;
                 };
 
-                const saveRecord = () => {
+                // 雲端功能：存檔
+                const saveRecord = async () => {
                     const d = Number(form.value.dozens) || 0;
                     const p = Number(form.value.pairs) || 0;
                     const pk = Number(form.value.packages) || 1;
@@ -424,22 +486,38 @@
                         return; 
                     }
 
-                    records.value.unshift({
-                        id: Date.now(),
-                        date: String(form.value.date),
-                        worker: String(form.value.worker || '未命名'),
-                        item: String(form.value.item),
-                        dozens: d, pairs: p, packages: pk, totalPairs: total,
-                        status: 'pending', timestamp: Date.now()
-                    });
-                    
-                    form.value.dozens = 0; form.value.pairs = 0; form.value.packages = 1;
-                    showToast('✅ 紀錄已存檔');
+                    isProcessing.value = true;
+                    try {
+                        // 強制轉換純字串與數字，杜絕 Vue Proxy 問題
+                        const pureData = {
+                            date: String(form.value.date),
+                            worker: String(form.value.worker || '未命名'),
+                            item: String(form.value.item),
+                            dozens: d, pairs: p, packages: pk, totalPairs: total,
+                            status: 'pending', timestamp: Date.now()
+                        };
+
+                        await addDoc(collection(db, 'records'), pureData);
+                        
+                        form.value.dozens = 0; form.value.pairs = 0; form.value.packages = 1;
+                        showToast('✅ 雲端存檔成功');
+                    } catch (e) {
+                        showToast('❌ 存檔失敗，請確認網路連線');
+                    } finally {
+                        isProcessing.value = false;
+                    }
                 };
 
-                const deleteRecord = (id) => {
-                    records.value = records.value.filter(r => r.id !== id);
-                    showToast('🗑️ 明細已刪除');
+                // 雲端功能：刪除單筆紀錄
+                const deleteRecord = async (id) => {
+                    if (confirm('確定要在雲端刪除這筆明細嗎？')) {
+                        try {
+                            await deleteDoc(doc(db, 'records', id));
+                            showToast('🗑️ 雲端明細已刪除');
+                        } catch (e) {
+                            showToast('❌ 刪除失敗');
+                        }
+                    }
                 };
 
                 const toggleSettled = () => {
@@ -543,41 +621,91 @@
                     }).sort((a, b) => b.settledDate.localeCompare(a.settledDate));
                 });
 
-                const settleActiveWorker = () => {
-                    const now = new Date();
-                    const settledString = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-                    const uniqueId = 'batch_' + Date.now();
+                // 雲端功能：批次結算
+                const settleActiveWorker = async () => {
+                    if (confirm(`確定要將「${activeWorkerName.value}」目前的帳目全部結算至雲端嗎？`)) {
+                        isProcessing.value = true;
+                        try {
+                            const now = new Date();
+                            const settledString = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                            const uniqueId = 'batch_' + Date.now();
 
-                    records.value = records.value.map(r => {
-                        if (r.worker === activeWorkerName.value && r.status === 'pending') {
-                            return { ...r, status: 'settled', settlementId: uniqueId, settledDate: settledString };
+                            const myPending = records.value.filter(r => r.worker === activeWorkerName.value && r.status === 'pending');
+                            
+                            const batch = writeBatch(db);
+                            myPending.forEach(r => {
+                                batch.update(doc(db, 'records', r.id), { 
+                                    status: 'settled', 
+                                    settlementId: uniqueId, 
+                                    settledDate: settledString 
+                                });
+                            });
+                            await batch.commit();
+
+                            reportMode.value = 'list'; 
+                            showToast(`🎉 雲端結算成功！`);
+                        } catch (e) {
+                            showToast('❌ 結算失敗');
+                        } finally {
+                            isProcessing.value = false;
                         }
-                        return r;
-                    });
-                    reportMode.value = 'list'; 
-                    showToast(`🎉 已成功結算歸檔！`);
+                    }
                 };
 
-                const undoSettlement = (sid) => {
-                    records.value = records.value.map(r => {
-                        if (r.settlementId === sid || (sid === 'old_batch' && r.worker === activeWorkerName.value && r.status === 'settled' && !r.settlementId)) {
-                            const { settlementId, settledDate, ...rest } = r; 
-                            return { ...rest, status: 'pending' }; 
+                // 雲端功能：復原結算
+                const undoSettlement = async (sid) => {
+                    if (confirm('確定要復原這批結算單，退回未結算區嗎？')) {
+                        try {
+                            const batch = writeBatch(db);
+                            
+                            if (sid === 'old_batch') {
+                                const q = query(collection(db, 'records'), where('worker', '==', activeWorkerName.value), where('status', '==', 'settled'));
+                                const snap = await getDocs(q);
+                                snap.forEach(d => {
+                                    if (!d.data().settlementId) {
+                                        batch.update(d.ref, { status: 'pending', settlementId: null, settledDate: null });
+                                    }
+                                });
+                            } else {
+                                const q = query(collection(db, 'records'), where('settlementId', '==', sid));
+                                const snap = await getDocs(q);
+                                snap.forEach(d => {
+                                    batch.update(d.ref, { status: 'pending', settlementId: null, settledDate: null });
+                                });
+                            }
+
+                            await batch.commit();
+                            reportMode.value = 'list'; 
+                            showToast('↩️ 已從雲端退回未結算');
+                        } catch (e) {
+                            showToast('❌ 復原失敗');
                         }
-                        return r;
-                    });
-                    reportMode.value = 'list'; 
-                    showToast('↩️ 點錯的結算已退回未結算！');
+                    }
                 };
 
-                const deleteSettlement = (sid) => {
-                    if(confirm('⚠️ 確定要「永久刪除」這筆歷史結算嗎？\n刪除後無法復原！')) {
-                        if (sid === 'old_batch') {
-                            records.value = records.value.filter(r => !(r.worker === activeWorkerName.value && r.status === 'settled' && !r.settlementId));
-                        } else {
-                            records.value = records.value.filter(r => r.settlementId !== sid);
+                // 雲端功能：刪除歷史批次
+                const deleteSettlement = async (sid) => {
+                    if(confirm('⚠️ 確定要「永久刪除」這筆歷史結算嗎？\n雲端刪除後無法復原！')) {
+                        try {
+                            const batch = writeBatch(db);
+
+                            if (sid === 'old_batch') {
+                                const q = query(collection(db, 'records'), where('worker', '==', activeWorkerName.value), where('status', '==', 'settled'));
+                                const snap = await getDocs(q);
+                                snap.forEach(d => {
+                                    if (!d.data().settlementId) batch.delete(d.ref);
+                                });
+                            } else {
+                                const q = query(collection(db, 'records'), where('settlementId', '==', sid));
+                                const snap = await getDocs(q);
+                                snap.forEach(d => batch.delete(d.ref));
+                            }
+                            
+                            await batch.commit();
+                            showToast('🗑️ 雲端歷史單已徹底刪除');
+                        } catch(e) {
+                            showToast('❌ 刪除失敗');
                         }
-                        showToast('🗑️ 歷史結算單已徹底刪除');
                     }
                 };
 
@@ -586,7 +714,9 @@
                     workers, records, items, form, newWorkerName, showWorkerModal,
                     confirmAddWorker, deleteWorker, formatTotal, saveRecord, deleteRecord,
                     reportMode, workerDirectory, openWorkerDetail, activeWorkerName, 
-                    activeWorkerData, activeWorkerItemTotals, activeWorkerSettledBatches, settleActiveWorker, toggleSettled, undoSettlement, deleteSettlement,
+                    activeWorkerData, activeWorkerItemTotals, activeWorkerSettledBatches, 
+                    settleActiveWorker, toggleSettled, undoSettlement, deleteSettlement,
+                    dbReady, isProcessing,
                     recentRecords: computed(() => records.value.filter(r=>r.status==='pending').slice(0, 3)),
                     currentDisplay: computed(() => formatTotal((((Number(form.value.dozens)||0) * 12) + (Number(form.value.pairs)||0)) * (Number(form.value.packages)||1)))
                 };
