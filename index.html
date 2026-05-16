@@ -29,12 +29,6 @@
             <div class="w-16"></div>
         </header>
 
-        <transition name="fade">
-            <div v-if="toastMsg" class="fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl z-[100] text-sm font-bold text-white transition-all whitespace-nowrap" :class="toastType === 'error' ? 'bg-red-600' : 'bg-slate-800'">
-                {{ toastMsg }}
-            </div>
-        </transition>
-
         <div v-show="currentTab === 'input'" class="p-5 space-y-6 pb-safe flex-1 overflow-y-auto no-scrollbar">
             
             <div class="grid grid-cols-2 gap-4">
@@ -112,14 +106,14 @@
                     <span class="text-sm text-slate-500">本次計算結果</span>
                     <span class="text-2xl font-black text-slate-900">{{ currentDisplay }}</span>
                 </div>
-                <button @click="saveRecord" :disabled="isSaving" class="w-full bg-slate-900 hover:bg-slate-800 text-white h-16 rounded-xl font-bold tracking-widest shadow-lg active:scale-95 transition-all text-lg disabled:opacity-50">
-                    {{ isSaving ? '傳送至雲端中...' : '立即儲存紀錄' }}
+                <button @click.prevent="saveRecord" :disabled="isSaving" class="w-full bg-slate-900 hover:bg-slate-800 text-white h-16 rounded-xl font-bold tracking-widest shadow-lg active:scale-95 transition-all text-lg disabled:opacity-50">
+                    {{ isSaving ? '雲端傳送中...' : '立即儲存紀錄' }}
                 </button>
             </div>
 
             <div v-if="recentRecords.length" class="space-y-2 mt-8">
                 <div class="text-xs text-slate-400 font-bold tracking-widest flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>雲端最新紀錄
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>剛成功存入雲端的紀錄
                 </div>
                 <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                     <div>
@@ -135,7 +129,7 @@
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-black">{{ showSettled ? '歷史紀錄 (已結算)' : '未結算報表' }}</h2>
                 <button @click="showSettled = !showSettled" class="text-xs font-bold text-indigo-600 border-2 border-indigo-100 px-3 py-2 rounded-lg bg-white active:bg-indigo-50">
-                    {{ showSettled ? '切換未結算' : '查看已結算' }}
+                    {{ showSettled ? '返回未結算' : '查看歷史紀錄' }}
                 </button>
             </div>
 
@@ -157,7 +151,7 @@
                         </div>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-50">
-                        <span class="text-xs font-bold text-slate-500">明細: {{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }}</span>
+                        <span class="text-xs font-bold text-slate-500">明細: {{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }}包</span>
                         <button @click="deleteRecord(r.id)" class="text-red-500 bg-red-50 px-3 py-1 rounded-lg text-xs font-bold active:bg-red-100">刪除</button>
                     </div>
                 </div>
@@ -209,7 +203,6 @@
         import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, writeBatch, setDoc, query, orderBy } 
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 您的 Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyDU2eAMCLTvbcofC5N7l_qOufvkK78N1h8",
             authDomain: "sock-accounting-settlement.firebaseapp.com",
@@ -228,8 +221,6 @@
             setup() {
                 const currentTab = ref('input');
                 const dbReady = ref(false);
-                const toastMsg = ref('');
-                const toastType = ref('info');
                 const isSaving = ref(false);
                 const showSettled = ref(false);
 
@@ -252,7 +243,6 @@
                     date: getToday(), worker: '', item: '襪子', dozens: 0, pairs: 0, packages: 1
                 });
 
-                // 初始化即時監聽雲端資料
                 onMounted(() => {
                     // 1. 車工名單
                     onSnapshot(doc(db, 'settings', 'workerList'), (snap) => {
@@ -260,14 +250,13 @@
                             workers.value = snap.data().names;
                             if (!form.value.worker && workers.value.length > 0) form.value.worker = workers.value[0];
                         } else {
-                            // 初次自動建立預設名單
                             setDoc(doc(db, 'settings', 'workerList'), { names: ['永靖劉小姐', '社頭王阿姨'] });
                         }
                         dbReady.value = true;
                         document.getElementById('app').style.display = 'flex';
                     });
 
-                    // 2. 記帳明細 (按時間新到舊排序)
+                    // 2. 記帳明細
                     const q = query(collection(db, 'records'), orderBy('timestamp', 'desc'));
                     onSnapshot(q, (snap) => {
                         records.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -295,23 +284,43 @@
                     return `${d} 打 ${p} 雙`;
                 };
 
+                // === 最關鍵的修復邏輯 ===
                 const saveRecord = async () => {
-                    const total = ((form.value.dozens * 12) + form.value.pairs) * form.value.packages;
-                    if (total === 0) { showToast('請輸入數量！', 'error'); return; }
+                    const d = Number(form.value.dozens) || 0;
+                    const p = Number(form.value.pairs) || 0;
+                    const pk = Number(form.value.packages) || 1; // 預防包數變0的防呆
+                    const total = ((d * 12) + p) * pk;
+
+                    if (total === 0) { 
+                        alert('⚠️ 請輸入打數或雙數！'); 
+                        return; 
+                    }
                     
                     isSaving.value = true;
                     try {
-                        await addDoc(collection(db, 'records'), {
-                            ...form.value,
-                            worker: form.value.worker || '未命名',
+                        // 強制轉換為「最純淨的文字和數字」，杜絕 Vue Proxy 被 Firebase 拒收
+                        const pureData = {
+                            date: String(form.value.date),
+                            worker: String(form.value.worker || '未命名'),
+                            item: String(form.value.item),
+                            dozens: d,
+                            pairs: p,
+                            packages: pk,
                             totalPairs: total,
                             status: 'pending',
                             timestamp: Date.now()
-                        });
-                        form.value.dozens = 0; form.value.pairs = 0; form.value.packages = 1;
-                        showToast('✅ 已同步至雲端', 'success');
+                        };
+
+                        await addDoc(collection(db, 'records'), pureData);
+                        
+                        form.value.dozens = 0; 
+                        form.value.pairs = 0; 
+                        form.value.packages = 1;
+                        
+                        // 恢復您最熟悉的彈跳視窗，這也是保證網路傳輸 100% 跑完的最佳防線！
+                        alert('✅ 資料已成功寫入雲端！\n\n(看到此視窗代表 100% 存檔完畢，可以安心關閉畫面)');
                     } catch (e) {
-                        showToast('❌ 儲存失敗，請檢查網路', 'error');
+                        alert('❌ 儲存失敗，系統攔截到錯誤：\n' + e.message);
                         console.error(e);
                     } finally {
                         isSaving.value = false;
@@ -319,18 +328,12 @@
                 };
 
                 const deleteRecord = async (id) => {
-                    if (confirm('確定刪除這筆雲端紀錄嗎？(刪除後無法復原)')) {
+                    if (confirm('確定要刪除這筆紀錄嗎？(雲端資料將永久移除)')) {
                         await deleteDoc(doc(db, 'records', id));
-                        showToast('🗑️ 紀錄已刪除');
+                        alert('🗑️ 紀錄已成功刪除');
                     }
                 };
 
-                const showToast = (msg, type = 'info') => {
-                    toastMsg.value = msg; toastType.value = type;
-                    setTimeout(() => toastMsg.value = '', 2000);
-                };
-
-                // 報表分組邏輯
                 const displayGroups = computed(() => {
                     const target = showSettled.value ? 'settled' : 'pending';
                     const groups = {};
@@ -343,19 +346,18 @@
                     return Object.values(groups);
                 });
 
-                // 結算視窗邏輯
                 const settleModal = ref(false);
                 const settleTarget = ref({ name: '', list: [] });
                 const settleSelected = ref([]);
                 
                 const openSettle = (name, list) => {
                     settleTarget.value = { name, list };
-                    settleSelected.value = list.map(r => r.id); // 預設全勾
+                    settleSelected.value = list.map(r => r.id); 
                     settleModal.value = true;
                 };
 
                 const confirmSettle = async () => {
-                    if(settleSelected.value.length === 0) { showToast('請至少勾選一筆', 'error'); return; }
+                    if(settleSelected.value.length === 0) { alert('⚠️ 請至少勾選一筆要結算的單子'); return; }
                     try {
                         const batch = writeBatch(db);
                         settleSelected.value.forEach(id => {
@@ -366,19 +368,19 @@
                         });
                         await batch.commit();
                         settleModal.value = false;
-                        showToast('🎉 結算成功！資料已隱藏至歷史區');
+                        alert('🎉 結算成功！資料已隱藏至歷史區');
                     } catch(e) {
-                        showToast('❌ 結算失敗', 'error');
+                        alert('❌ 結算失敗：' + e.message);
                     }
                 };
 
                 return {
-                    currentTab, dbReady, toastMsg, toastType, isSaving, showSettled,
+                    currentTab, dbReady, isSaving, showSettled,
                     workers, records, items, form, isAddingWorker, newWorkerName,
                     confirmAddWorker, formatTotal, saveRecord, deleteRecord,
                     displayGroups, settleModal, settleTarget, settleSelected, openSettle, confirmSettle,
                     recentRecords: computed(() => records.value.slice(0, 3)),
-                    currentDisplay: computed(() => formatTotal(((form.value.dozens * 12) + form.value.pairs) * form.value.packages))
+                    currentDisplay: computed(() => formatTotal((((Number(form.value.dozens)||0) * 12) + (Number(form.value.pairs)||0)) * (Number(form.value.packages)||1)))
                 };
             }
         }).mount('#app');
