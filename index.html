@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>輕職人 - 車縫記帳 (雲端旗艦版)</title>
+    <title>輕職人 - 車縫記帳 (高反差版)</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -39,7 +39,7 @@
             </div>
             <span class="text-lg flex items-center">
                 車縫記帳 
-                <span class="ml-2 text-[10px] bg-[#a84439] text-white px-2 py-0.5 rounded-full shadow-inner">v14.0 雲端旗艦</span>
+                <span class="ml-2 text-[10px] bg-[#a84439] text-white px-2 py-0.5 rounded-full shadow-inner">v16.0 撞色標籤</span>
             </span>
         </header>
 
@@ -121,7 +121,7 @@
                     <div>
                         <div class="text-xs font-bold text-stone-400 mb-1">{{ r.worker }}</div>
                         <div class="flex items-center space-x-2">
-                            <span :class="['px-2 py-0.5 rounded text-[10px] border font-black', getItemColor(r.item)]">{{ r.item }}</span>
+                            <span :class="['px-2 py-0.5 rounded text-[10px] border border-transparent font-black shadow-sm', getItemColor(r.item)]">{{ r.item }}</span>
                             <span class="text-sm font-bold text-stone-600">{{ formatBreakdown(r) }}</span>
                         </div>
                     </div>
@@ -151,9 +151,9 @@
                 <div class="space-y-4">
                     <div v-for="worker in workerDirectory" :key="worker.name" 
                          @click="openWorkerDetail(worker.name)"
-                         class="bg-white p-5 rounded-2xl shadow-sm border-2 border-[#EEDDCC] flex justify-between items-start active:scale-95 transition-transform cursor-pointer">
+                         class="bg-white p-5 rounded-2xl shadow-sm border-2 border-[#EEDDCC] flex justify-between items-center active:scale-95 transition-transform cursor-pointer">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-full bg-[#CC5A50] text-white flex items-center justify-center font-black mt-1">
+                            <div class="w-10 h-10 rounded-full bg-[#CC5A50] text-white flex items-center justify-center font-black">
                                 {{ worker.name.substring(0,1) }}
                             </div>
                             <div>
@@ -161,10 +161,16 @@
                                 <div class="text-[10px] text-stone-400 mt-1">點擊查看對帳明細 ➔</div>
                             </div>
                         </div>
-                        <div class="text-right flex flex-col gap-1">
-                            <div class="text-[10px] text-[#CC5A50] font-bold mb-1">分類總計</div>
-                            <div v-for="t in worker.itemTotals" :key="t.itemName" class="font-black text-sm text-stone-700">
-                                {{ t.itemName }}: {{ formatTotal(t.total) }}
+                        
+                        <div class="text-right flex flex-col gap-1.5 items-end">
+                            <div class="text-[10px] text-stone-400 bg-stone-100 px-2 py-0.5 rounded font-bold mb-0.5 flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                數字已隱藏
+                            </div>
+                            <div class="flex flex-wrap gap-1 justify-end max-w-[90px]">
+                                <span v-for="t in worker.itemTotals" :key="t.itemName" :class="['px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm', getItemColor(t.itemName)]">
+                                    {{ t.itemName }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -207,7 +213,7 @@
                             <div class="p-3 space-y-4">
                                 <div v-for="itemGroup in day.items" :key="itemGroup.itemName" class="bg-white border-2 border-[#EEDDCC] rounded-xl overflow-hidden shadow-sm">
                                     <div class="bg-[#FDF9F1] px-3 py-2 flex items-center border-b border-[#EEDDCC]">
-                                        <span :class="['px-3 py-1 rounded-md text-xs font-black border mr-2 shadow-sm', getItemColor(itemGroup.itemName)]">
+                                        <span :class="['px-3 py-1 rounded-md text-xs font-black border-transparent shadow-sm mr-2', getItemColor(itemGroup.itemName)]">
                                             {{ itemGroup.itemName }}
                                         </span>
                                     </div>
@@ -261,7 +267,7 @@
                             </div>
                             <div class="space-y-3">
                                 <div v-for="itemGroup in day.items" :key="itemGroup.itemName" class="flex justify-between items-center pl-2">
-                                    <span :class="['px-3 py-1 rounded-md text-xs border font-black shadow-sm', getItemColor(itemGroup.itemName)]">{{ itemGroup.itemName }}</span>
+                                    <span :class="['px-3 py-1 rounded-md text-xs border-transparent font-black shadow-sm', getItemColor(itemGroup.itemName)]">{{ itemGroup.itemName }}</span>
                                     <span class="font-black text-lg text-stone-800">{{ formatTotal(itemGroup.itemTotal) }}</span>
                                 </div>
                             </div>
@@ -324,7 +330,6 @@
         import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, query, orderBy, writeBatch, getDocs, where } 
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 您的專屬雲端金鑰
         const firebaseConfig = {
             apiKey: "AIzaSyDU2eAMCLTvbcofC5N7l_qOufvkK78N1h8",
             authDomain: "sock-accounting-settlement.firebaseapp.com",
@@ -348,7 +353,6 @@
                 const toastMsg = ref('');
                 const showWorkerModal = ref(false);
                 
-                // 雲端連線與處理狀態
                 const dbReady = ref(false);
                 const isProcessing = ref(false);
 
@@ -362,20 +366,16 @@
                 const workers = ref([]);
                 const records = ref([]);
 
-                // ✅ 系統啟動：掛載雲端資料監聽器
                 onMounted(() => {
-                    // 1. 監聽車工名單
                     onSnapshot(doc(db, 'settings', 'workerList'), (snap) => {
                         if (snap.exists()) {
                             workers.value = snap.data().names || [];
                             if (!form.value.worker && workers.value.length > 0) form.value.worker = workers.value[0];
                         } else {
-                            // 第一次使用，建立預設資料
                             setDoc(doc(db, 'settings', 'workerList'), { names: ['永靖劉小姐', '社頭王阿姨'] });
                         }
                     });
 
-                    // 2. 監聽所有記帳紀錄 (按時間排序)
                     const q = query(collection(db, 'records'), orderBy('timestamp', 'desc'));
                     onSnapshot(q, (snap) => {
                         records.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -384,18 +384,21 @@
                     });
                 });
                 
+                // 🌟 四種極度顯眼的選擇按鈕配色
                 const items = [
-                    { name: '襪子', activeClass: 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' },
-                    { name: '手套', activeClass: 'bg-[#d87c73] text-white border-[#d87c73] shadow-md' },
-                    { name: '寬口襪', activeClass: 'bg-[#e49b56] text-white border-[#e49b56] shadow-md' },
-                    { name: '其他', activeClass: 'bg-stone-500 text-white border-stone-500 shadow-md' }
+                    { name: '襪子', activeClass: 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' }, // 磚紅
+                    { name: '手套', activeClass: 'bg-[#3B82F6] text-white border-[#3B82F6] shadow-md' }, // 海藍
+                    { name: '寬口襪', activeClass: 'bg-[#10B981] text-white border-[#10B981] shadow-md' }, // 翠綠
+                    { name: '其他', activeClass: 'bg-[#8B5CF6] text-white border-[#8B5CF6] shadow-md' }  // 紫羅蘭
                 ];
 
+                // 🌟 所有顯示標籤改為「實心白字」
                 const getItemColor = (name) => {
-                    if (name === '襪子') return 'bg-red-50 text-red-700 border-red-200';
-                    if (name === '手套') return 'bg-orange-50 text-orange-700 border-orange-200';
-                    if (name === '寬口襪') return 'bg-amber-50 text-amber-700 border-amber-200';
-                    return 'bg-stone-100 text-stone-700 border-stone-300';
+                    if (name === '襪子') return 'bg-[#CC5A50] text-white';
+                    if (name === '手套') return 'bg-[#3B82F6] text-white';
+                    if (name === '寬口襪') return 'bg-[#10B981] text-white';
+                    if (name === '其他') return 'bg-[#8B5CF6] text-white';
+                    return 'bg-stone-500 text-white';
                 };
 
                 const getToday = () => {
@@ -411,7 +414,6 @@
 
                 const newWorkerName = ref('');
                 
-                // 雲端功能：新增車工
                 const confirmAddWorker = async () => {
                     const name = newWorkerName.value.trim();
                     if (name && !workers.value.includes(name)) {
@@ -430,16 +432,13 @@
                     newWorkerName.value = '';
                 };
 
-                // 雲端功能：刪除車工及雲端紀錄
                 const deleteWorker = async (name) => {
                     if(confirm(`確定要將車工「${name}」從雲端刪除嗎？\n\n⚠️ 將連同他/她的【所有紀錄】一併清空不可復原！`)) {
                         isProcessing.value = true;
                         try {
-                            // 1. 更新名單
                             const newNames = workers.value.filter(w => w !== name);
                             await setDoc(doc(db, 'settings', 'workerList'), { names: newNames });
                             
-                            // 2. 批次刪除該車工的雲端紀錄
                             const q = query(collection(db, 'records'), where('worker', '==', name));
                             const snap = await getDocs(q);
                             const batch = writeBatch(db);
@@ -474,7 +473,6 @@
                     return text;
                 };
 
-                // 雲端功能：存檔
                 const saveRecord = async () => {
                     const d = Number(form.value.dozens) || 0;
                     const p = Number(form.value.pairs) || 0;
@@ -488,7 +486,6 @@
 
                     isProcessing.value = true;
                     try {
-                        // 強制轉換純字串與數字，杜絕 Vue Proxy 問題
                         const pureData = {
                             date: String(form.value.date),
                             worker: String(form.value.worker || '未命名'),
@@ -508,7 +505,6 @@
                     }
                 };
 
-                // 雲端功能：刪除單筆紀錄
                 const deleteRecord = async (id) => {
                     if (confirm('確定要在雲端刪除這筆明細嗎？')) {
                         try {
@@ -621,7 +617,6 @@
                     }).sort((a, b) => b.settledDate.localeCompare(a.settledDate));
                 });
 
-                // 雲端功能：批次結算
                 const settleActiveWorker = async () => {
                     if (confirm(`確定要將「${activeWorkerName.value}」目前的帳目全部結算至雲端嗎？`)) {
                         isProcessing.value = true;
@@ -652,7 +647,6 @@
                     }
                 };
 
-                // 雲端功能：復原結算
                 const undoSettlement = async (sid) => {
                     if (confirm('確定要復原這批結算單，退回未結算區嗎？')) {
                         try {
@@ -683,7 +677,6 @@
                     }
                 };
 
-                // 雲端功能：刪除歷史批次
                 const deleteSettlement = async (sid) => {
                     if(confirm('⚠️ 確定要「永久刪除」這筆歷史結算嗎？\n雲端刪除後無法復原！')) {
                         try {
