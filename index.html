@@ -2,394 +2,55 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>輕職人 - 車縫記帳系統</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', '微軟正黑體', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; font-weight: 600; }
-        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .pb-safe { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
-        .modal-enter-active, .modal-leave-active { transition: opacity 0.3s ease; }
-        .modal-enter-from, .modal-leave-to { opacity: 0; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 照妖鏡測試</title>
 </head>
-<body class="text-slate-800 selection:bg-slate-200">
-
-    <div id="crash-rescue" style="display:none; text-align:center; padding:50px; margin-top: 50px;">
-        <div class="bg-red-50 text-red-600 p-6 rounded-2xl border-2 border-red-200 shadow-md">
-            <h2 class="text-xl font-black mb-2">⚠️ 系統資料異常</h2>
-            <p class="text-sm font-bold mb-6">手機內儲存的舊資料發生衝突，導致畫面卡死。</p>
-            <button onclick="localStorage.clear(); location.reload();" class="bg-red-600 text-white w-full py-4 rounded-xl font-bold text-lg shadow-lg active:bg-red-700">
-                點此清除異常資料並重啟
-            </button>
-            <p class="text-xs text-red-400 mt-4">(注意：這會清空目前本機的暫存資料)</p>
-        </div>
+<body style="padding: 20px; font-family: sans-serif; background-color: #f0f0f0;">
+    
+    <h2 style="color: #333;">Firebase 連線照妖鏡</h2>
+    <p>如果寫不進去，這裡會顯示真正的錯誤原因：</p>
+    
+    <button id="btn" style="padding: 15px 30px; font-size: 18px; background: #e11d48; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+        點我發射測試資料
+    </button>
+    
+    <div id="log" style="margin-top: 30px; border: 2px dashed #999; padding: 15px; min-height: 200px; background: white; font-size: 16px; line-height: 1.6; word-break: break-all;">
+        系統準備就緒...請點擊上方紅色的按鈕 👇<br>
     </div>
 
-    <div id="app" class="max-w-md mx-auto bg-white min-h-screen relative shadow-sm flex flex-col" style="display: none;">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         
-        <header class="bg-slate-900 text-white p-4 text-center font-bold tracking-widest sticky top-0 z-10 flex justify-between items-center">
-            <div class="w-6"></div><span class="text-lg">車縫記帳系統</span><div class="w-6"></div>
-        </header>
-
-        <transition name="fade">
-            <div v-if="toastMsg" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white font-bold px-6 py-3 rounded-full shadow-lg z-50 text-sm tracking-wide transition-opacity duration-300">
-                {{ toastMsg }}
-            </div>
-        </transition>
-
-        <div v-show="currentTab === 'input'" class="p-5 space-y-6 pb-safe flex-1 overflow-y-auto no-scrollbar">
-            <div class="flex space-x-3">
-                <div class="flex-1">
-                    <label class="block text-sm font-bold text-slate-500 mb-1">日期</label>
-                    <input type="date" v-model="form.date" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm font-bold outline-none focus:border-slate-500">
-                </div>
-                <div class="flex-1 relative">
-                    <label class="block text-sm font-bold text-slate-500 mb-1">車工</label>
-                    <div v-if="!isAddingWorker" class="flex space-x-2">
-                        <select v-model="form.worker" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm font-bold outline-none focus:border-slate-500">
-                            <option v-for="w in workers" :key="w" :value="w">{{ w }}</option>
-                        </select>
-                        <button @click="isAddingWorker = true" class="bg-slate-200 border border-slate-300 text-slate-700 rounded-xl px-3 font-black text-lg">+</button>
-                    </div>
-                    <div v-else class="flex space-x-2">
-                        <input v-model="newWorkerName" type="text" placeholder="輸入姓名" class="w-full bg-white border border-slate-400 rounded-xl p-3 text-sm font-bold outline-none focus:border-slate-600">
-                        <button @click="confirmAddWorker" class="bg-slate-800 text-white font-bold rounded-xl px-3 text-sm">確認</button>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-slate-500 mb-2">品項</label>
-                <div class="flex flex-wrap gap-2">
-                    <button v-for="item in items" :key="item.name" @click="form.item = item.name" 
-                            :class="['px-5 py-2.5 rounded-xl text-base font-bold border-2 transition-colors', form.item === item.name ? item.activeClass : 'bg-white text-slate-600 border-slate-200 active:bg-slate-100']">
-                        {{ item.name }}
-                    </button>
-                </div>
-            </div>
-            <hr class="border-slate-200 border-2">
-
-            <div class="space-y-6">
-                <div>
-                    <div class="flex justify-between items-end mb-2">
-                        <label class="block text-base font-bold text-slate-800">打數</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="number" v-model.number="form.dozens" class="w-20 bg-slate-50 border-2 border-slate-300 rounded-lg p-2 text-center font-bold text-lg outline-none focus:border-slate-500" placeholder="0">
-                            <span class="text-sm font-bold text-slate-600">打</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-5 gap-2">
-                        <button v-for="val in dozenOpts" :key="val" @click="form.dozens = val" :class="['h-12 rounded-xl text-lg font-bold border-2', form.dozens === val ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-700 border-slate-200']">{{ val }}</button>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between items-end mb-2">
-                        <label class="block text-base font-bold text-slate-800">零星雙數</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="number" v-model.number="form.pairs" class="w-20 bg-slate-50 border-2 border-slate-300 rounded-lg p-2 text-center font-bold text-lg outline-none focus:border-slate-500" placeholder="0">
-                            <span class="text-sm font-bold text-slate-600">雙</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-6 gap-2">
-                        <button v-for="val in pairOpts" :key="val" @click="form.pairs = val" :class="['h-12 rounded-xl text-lg font-bold border-2', form.pairs === val ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-700 border-slate-200']">{{ val }}</button>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between items-end mb-2">
-                        <label class="block text-base font-bold text-slate-800">包數 (乘數)</label>
-                        <div class="flex items-center space-x-2">
-                            <input type="number" v-model.number="form.packages" class="w-20 bg-slate-50 border-2 border-slate-300 rounded-lg p-2 text-center font-bold text-lg outline-none focus:border-slate-500" placeholder="1">
-                            <span class="text-sm font-bold text-slate-600">包</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-4 gap-2">
-                        <button v-for="val in packOpts" :key="val" @click="form.packages = val" :class="['h-12 rounded-xl text-lg font-bold border-2', form.packages === val ? 'bg-slate-800 text-white border-slate-800 shadow-md' : 'bg-white text-slate-700 border-slate-200']">x{{ val }}</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6 pt-6 border-t-2 border-slate-200 flex flex-col space-y-4">
-                <div class="flex justify-between items-center bg-slate-100 p-4 rounded-xl border-2 border-slate-200">
-                    <span class="text-base font-bold text-slate-600">本次計算結果</span>
-                    <span class="text-2xl font-black text-slate-900">{{ currentDisplay }}</span>
-                </div>
-                <button @click="saveRecord" class="w-full bg-slate-900 text-white h-16 rounded-xl font-bold tracking-widest shadow-lg active:bg-slate-700 transition-colors text-xl">
-                    立即儲存紀錄
-                </button>
-            </div>
-            
-            <div v-if="recentRecords.length > 0" class="mt-8 bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
-                <h3 class="text-sm font-bold text-slate-500 mb-3 flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span> 最近儲存的紀錄
-                </h3>
-                <div class="space-y-2">
-                    <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-lg border border-slate-200 flex justify-between items-center shadow-sm">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-slate-400">{{ r.worker }}</span>
-                            <span class="text-base font-bold text-slate-800">{{ r.item }} ({{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }})</span>
-                        </div>
-                        <div class="text-lg font-black text-slate-900">{{ formatTotal(r.totalPairs) }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div v-show="currentTab === 'report'" class="p-5 pb-safe flex-1 overflow-y-auto bg-slate-100">
-            <div class="flex justify-between items-center mb-5">
-                <h2 class="text-xl font-black text-slate-800 tracking-wide flex items-center">
-                    <span class="w-1.5 h-6 bg-slate-800 rounded-full mr-2"></span>
-                    {{ showSettledMode ? '已隱藏 (歷史) 紀錄' : '未結算報表' }}
-                </h2>
-                <button @click="showSettledMode = !showSettledMode" class="text-xs font-bold px-3 py-2 rounded-lg border-2" :class="showSettledMode ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300'">
-                    {{ showSettledMode ? '返回未結算' : '查看歷史紀錄' }}
-                </button>
-            </div>
-            
-            <div v-if="displayGroups.length === 0" class="text-center font-bold text-slate-400 py-10 bg-white rounded-2xl shadow-sm border border-slate-200">
-                目前沒有資料
-            </div>
-            
-            <div v-for="group in displayGroups" :key="group.name" class="mb-5 bg-white border-2 border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                <div class="bg-slate-800 px-5 py-4 flex justify-between items-center">
-                    <span class="font-bold text-lg text-white tracking-wide">{{ group.name }}</span>
-                    <span class="font-black text-white text-base bg-slate-600 px-3 py-1 rounded-lg">{{ formatTotal(group.totalPairs) }}</span>
-                </div>
-                
-                <ul class="divide-y-2 divide-slate-100">
-                    <li v-for="record in group.list" :key="record.id" class="p-4 flex flex-col relative" :class="record.status === 'settled' ? 'opacity-70 bg-slate-50' : ''">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex flex-col">
-                                <span class="text-xs font-bold text-slate-400 mb-1">{{ record.date.substring(5) }}</span>
-                                <span class="text-base font-bold text-slate-800">{{ record.item }}</span>
-                            </div>
-                            <div class="text-right flex flex-col items-end">
-                                <span class="text-lg font-black text-slate-900">{{ formatTotal(record.totalPairs) }}</span>
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
-                            <span class="text-xs font-bold text-slate-500">明細: {{ record.dozens }}打{{ record.pairs }}雙 x {{ record.packages }}包</span>
-                            <button @click="deleteRecord(record.id)" class="flex items-center text-red-500 bg-red-50 border border-red-100 px-2.5 py-1 rounded-lg text-xs font-bold active:bg-red-200 transition-colors">
-                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                刪除
-                            </button>
-                        </div>
-                    </li>
-                </ul>
-
-                <div v-if="!showSettledMode && group.list.length > 0" class="p-3 bg-slate-50 border-t-2 border-slate-200">
-                    <button @click="openSettleModal(group.name, group.list)" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-sm active:bg-indigo-700 flex justify-center items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        結算 {{ group.name }} 的帳目
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <transition name="modal">
-            <div v-if="isSettleModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900 bg-opacity-60 backdrop-blur-sm">
-                <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
-                    <div class="bg-slate-800 text-white p-4 text-center font-bold text-lg">結算確認：{{ settleData.worker }}</div>
-                    <div class="p-4 bg-slate-50 text-sm font-bold text-slate-600 border-b border-slate-200">
-                        請勾選這次「要結算並隱藏」的項目。<br>
-                        <span class="text-indigo-600">若有要留到下個月算的，請把打勾取消！</span>
-                    </div>
-                    <div class="overflow-y-auto p-2 flex-1">
-                        <label v-for="record in settleData.list" :key="record.id" class="flex items-center p-3 hover:bg-slate-50 rounded-xl cursor-pointer border-b border-slate-100 last:border-0">
-                            <input type="checkbox" v-model="selectedToSettle" :value="record.id" class="w-5 h-5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 mr-3">
-                            <div class="flex-1">
-                                <div class="font-bold text-slate-800">{{ record.item }}</div>
-                                <div class="text-xs text-slate-500">{{ record.date.substring(5) }} | {{ formatTotal(record.totalPairs) }}</div>
-                            </div>
-                        </label>
-                    </div>
-                    <div class="p-4 border-t border-slate-200 flex space-x-3 bg-white">
-                        <button @click="isSettleModalOpen = false" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl active:bg-slate-200">取消</button>
-                        <button @click="confirmSettlement" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl active:bg-indigo-700 shadow-md">
-                            確認結算 ({{ selectedToSettle.length }})
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </transition>
-
-        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-slate-200 flex justify-around pb-safe z-20 shadow-[0_-4px_15px_rgba(0,0,0,0.05)]">
-            <button @click="currentTab = 'input'; showSettledMode = false;" :class="['flex-1 py-4 flex flex-col items-center space-y-1', currentTab === 'input' ? 'text-slate-900' : 'text-slate-400']">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                <span class="text-xs font-bold tracking-widest">記帳輸入</span>
-            </button>
-            <button @click="currentTab = 'report'" :class="['flex-1 py-4 flex flex-col items-center space-y-1', currentTab === 'report' ? 'text-slate-900' : 'text-slate-400']">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                <span class="text-xs font-bold tracking-widest">總表查看</span>
-            </button>
-        </nav>
-    </div>
-
-    <script>
-        // 設定全域錯誤捕捉，如果 Vue 崩潰，顯示救援按鈕
-        window.onerror = function() {
-            document.getElementById('crash-rescue').style.display = 'block';
+        // 您專屬的連線金鑰
+        const firebaseConfig = {
+            apiKey: "AIzaSyDU2eAMCLTvbcofC5N7l_qOufvkK78N1h8",
+            authDomain: "sock-accounting-settlement.firebaseapp.com",
+            projectId: "sock-accounting-settlement",
+            storageBucket: "sock-accounting-settlement.firebasestorage.app",
+            messagingSenderId: "571398198878",
+            appId: "1:571398198878:web:82e860609168ffc6a686cf"
         };
-
-        const { createApp, ref, computed, watch } = Vue;
-
-        createApp({
-            setup() {
-                const currentTab = ref('input');
-                const toastMsg = ref('');
-                const showSettledMode = ref(false); 
-
-                // 安全讀取 Workers
-                let initWorkers = ['永靖劉小姐', '社頭王阿姨'];
-                try {
-                    const savedW = localStorage.getItem('litepro_workers');
-                    if (savedW) {
-                        const parsedW = JSON.parse(savedW);
-                        if (Array.isArray(parsedW) && parsedW.length > 0) initWorkers = parsedW;
-                    }
-                } catch(e) { console.error('Workers 解析失敗', e); }
-                const workers = ref(initWorkers);
+        
+        const log = document.getElementById('log');
+        
+        document.getElementById('btn').onclick = async () => {
+            log.innerHTML += "<br>▶ 開始嘗試連線...<br>";
+            try {
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                log.innerHTML += "▶ Firebase 初始化成功...正在嘗試寫入資料...<br>";
                 
-                // 安全讀取 Records
-                let initRecords = [];
-                try {
-                    const savedR = localStorage.getItem('litepro_records');
-                    if (savedR) {
-                        const parsedR = JSON.parse(savedR);
-                        if (Array.isArray(parsedR)) initRecords = parsedR;
-                    }
-                } catch(e) { console.error('Records 解析失敗', e); }
-                const records = ref(initRecords);
-
-                // 畫面載入成功，顯示主程式
-                setTimeout(() => { document.getElementById('app').style.display = 'flex'; }, 50);
-
-                watch(workers, (newVal) => localStorage.setItem('litepro_workers', JSON.stringify(newVal)), { deep: true });
-                watch(records, (newVal) => localStorage.setItem('litepro_records', JSON.stringify(newVal)), { deep: true });
-
-                const isAddingWorker = ref(false);
-                const newWorkerName = ref('');
-                const confirmAddWorker = () => {
-                    if (newWorkerName.value.trim() && !workers.value.includes(newWorkerName.value.trim())) {
-                        workers.value.push(newWorkerName.value.trim());
-                        form.value.worker = newWorkerName.value.trim();
-                    }
-                    newWorkerName.value = '';
-                    isAddingWorker.value = false;
-                };
-
-                const items = ref([
-                    { name: '襪子', activeClass: 'bg-indigo-600 text-white border-indigo-600 shadow-md' },
-                    { name: '手套', activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md' },
-                    { name: '寬口襪', activeClass: 'bg-amber-600 text-white border-amber-600 shadow-md' },
-                    { name: '其他', activeClass: 'bg-slate-700 text-white border-slate-700 shadow-md' }
-                ]);
-
-                // 安全取得今日日期 YYYY-MM-DD
-                const getToday = () => {
-                    const d = new Date();
-                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                };
-
-                const form = ref({
-                    date: getToday(),
-                    worker: workers.value[0] || '',
-                    item: '襪子',
-                    dozens: 0,
-                    pairs: 0,
-                    packages: 1
+                await addDoc(collection(db, "test_connection"), {
+                    message: "恭喜！成功寫入！",
+                    time: new Date().toLocaleString()
                 });
-
-                const dozenOpts = [15, 30, 36, 42, 48, 50, 78];
-                const pairOpts = [0, 2, 4, 6, 8, 10];
-                const packOpts = [1, 2, 3, 4, 5, 6, 7, 8];
-
-                const currentTotalPairs = computed(() => (((Number(form.value.dozens) || 0) * 12) + (Number(form.value.pairs) || 0)) * (Number(form.value.packages) || 0));
-
-                const formatTotal = (total) => {
-                    const d = Math.floor(total / 12);
-                    const p = total % 12;
-                    if (d === 0 && p === 0) return '0 打'; 
-                    if (d === 0) return `${p} 雙`;
-                    if (p === 0) return `${d} 打`;
-                    return `${d} 打 ${p} 雙`;
-                };
-                const currentDisplay = computed(() => formatTotal(currentTotalPairs.value));
-
-                const recentRecords = computed(() => [...records.value].reverse().slice(0, 3));
-
-                const saveRecord = () => {
-                    if (currentTotalPairs.value === 0) { showToast('請輸入數量！'); return; }
-                    records.value.push({
-                        id: Date.now(), date: form.value.date, worker: form.value.worker || '未命名', item: form.value.item,
-                        dozens: form.value.dozens || 0, pairs: form.value.pairs || 0, packages: form.value.packages || 1,
-                        totalPairs: currentTotalPairs.value,
-                        status: 'pending'
-                    });
-                    form.value.dozens = 0; form.value.pairs = 0; form.value.packages = 1;
-                    showToast('✅ 紀錄已成功儲存');
-                };
-
-                const deleteRecord = (id) => {
-                    if(confirm('確定要刪除這筆單子嗎？')) {
-                        records.value = records.value.filter(r => r.id !== id);
-                        showToast('🗑️ 已刪除資料');
-                    }
-                };
-
-                const displayGroups = computed(() => {
-                    const groups = {};
-                    const targetStatus = showSettledMode.value ? 'settled' : 'pending';
-                    
-                    records.value.forEach(r => {
-                        const rStatus = r.status || 'pending';
-                        if (rStatus === targetStatus) {
-                            const workerName = r.worker || '未命名';
-                            if (!groups[workerName]) groups[workerName] = { name: workerName, totalPairs: 0, list: [] };
-                            groups[workerName].totalPairs += (r.totalPairs || 0);
-                            groups[workerName].list.unshift(r); 
-                        }
-                    });
-                    return Object.values(groups);
-                });
-
-                const isSettleModalOpen = ref(false);
-                const settleData = ref({ worker: '', list: [] });
-                const selectedToSettle = ref([]);
-
-                const openSettleModal = (workerName, workerList) => {
-                    settleData.value = { worker: workerName, list: workerList };
-                    selectedToSettle.value = workerList.map(r => r.id);
-                    isSettleModalOpen.value = true;
-                };
-
-                const confirmSettlement = () => {
-                    if (selectedToSettle.value.length === 0) {
-                        showToast('請至少勾選一筆紀錄');
-                        return;
-                    }
-                    records.value.forEach(r => {
-                        if (selectedToSettle.value.includes(r.id)) {
-                            r.status = 'settled';
-                        }
-                    });
-                    isSettleModalOpen.value = false;
-                    showToast('✅ 結算完成！資料已隱藏');
-                };
-
-                const showToast = (msg) => { toastMsg.value = msg; setTimeout(() => { toastMsg.value = ''; }, 2000); };
-
-                return {
-                    currentTab, toastMsg, form, workers, isAddingWorker, newWorkerName, confirmAddWorker,
-                    items, dozenOpts, pairOpts, packOpts, currentDisplay, saveRecord, deleteRecord, formatTotal,
-                    recentRecords, showSettledMode, displayGroups,
-                    isSettleModalOpen, settleData, selectedToSettle, openSettleModal, confirmSettlement
-                };
+                log.innerHTML += "<br><span style='color:green; font-weight:bold; font-size: 20px;'>✅ 寫入成功！資料庫完全沒問題了！</span><br>";
+            } catch (e) {
+                log.innerHTML += "<br><span style='color:red; font-weight:bold; font-size: 20px;'>❌ 發生錯誤，抓到兇手了：</span><br>";
+                log.innerHTML += "<span style='color:red; font-weight:bold;'>" + e.message + "</span><br>";
             }
-        }).mount('#app');
+        };
     </script>
 </body>
 </html>
