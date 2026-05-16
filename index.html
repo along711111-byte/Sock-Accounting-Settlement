@@ -6,197 +6,306 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>輕職人 - 車縫記帳 (單機版)</title>
+    <title>輕職人 - 車縫記帳 (視覺放大版)</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', '微軟正黑體', sans-serif; background-color: #f8fafc; font-weight: 700; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang TC', '微軟正黑體', sans-serif; background-color: #FDF9F1; font-weight: 700; -webkit-tap-highlight-color: transparent; }
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* 加大底部預留空間，以免內容被懸浮按鈕擋住 */
-        .pb-safe { padding-bottom: calc(170px + env(safe-area-inset-bottom)); } 
-        
+        .pb-safe-content { padding-bottom: calc(200px + env(safe-area-inset-bottom)); }
         .btn-press:active { transform: scale(0.95); box-shadow: 0 0 0 rgba(0,0,0,0); margin-top: 4px; }
+        .toast-enter-active, .toast-leave-active { transition: opacity 0.4s, transform 0.4s; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, -20px); }
     </style>
 </head>
-<body class="text-slate-900 selection:bg-slate-200">
+<body class="text-stone-800 selection:bg-orange-200">
 
-    <div id="app" class="max-w-md mx-auto bg-white min-h-screen relative flex flex-col shadow-2xl">
+    <div id="app" class="max-w-md mx-auto bg-[#FDF9F1] min-h-screen relative flex flex-col shadow-2xl">
         
-        <header class="bg-slate-900 text-white p-4 text-center font-bold tracking-widest sticky top-0 z-50 flex justify-center items-center shadow-lg">
+        <transition name="toast">
+            <div v-if="toastMsg" class="fixed top-20 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl z-[250] text-sm font-bold tracking-widest whitespace-nowrap pointer-events-none">
+                {{ toastMsg }}
+            </div>
+        </transition>
+
+        <header class="bg-[#CC5A50] text-white p-4 text-center font-bold tracking-widest sticky top-0 z-50 flex justify-center items-center shadow-md">
             <span class="text-lg flex items-center">
-                車縫記帳系統 
-                <span class="ml-2 text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full">v5.3 懸浮按鈕版</span>
+                車縫記帳 
+                <span class="ml-2 text-[10px] bg-[#a84439] text-white px-2 py-0.5 rounded-full shadow-inner">v11.0 視覺放大版</span>
             </span>
         </header>
 
-        <div v-show="currentTab === 'input'" class="p-5 space-y-5 pb-safe flex-1 overflow-y-auto no-scrollbar">
+        <div v-show="currentTab === 'input'" class="p-5 space-y-5 pb-safe-content flex-1 overflow-y-auto no-scrollbar">
             
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm text-slate-500 mb-1">日期</label>
-                    <input type="date" v-model="form.date" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm font-bold focus:border-slate-800 outline-none">
+                    <label class="block text-sm text-[#CC5A50] font-black mb-1">日期</label>
+                    <input type="date" v-model="form.date" class="w-full bg-white border-2 border-[#EEDDCC] rounded-xl p-3 text-sm font-bold focus:border-[#CC5A50] outline-none text-stone-700 shadow-sm">
                 </div>
                 <div>
-                    <label class="block text-sm text-slate-500 mb-1">車工</label>
-                    <div v-if="!isAddingWorker" class="flex space-x-2">
-                        <select v-model="form.worker" class="w-full bg-slate-50 border-2 border-slate-200 rounded-xl p-3 text-sm font-bold focus:border-slate-800 outline-none">
-                            <option v-for="w in workers" :key="w" :value="w">{{ w }}</option>
-                        </select>
-                        <button type="button" @click="isAddingWorker = true" class="bg-slate-200 px-3 rounded-xl hover:bg-slate-300 text-lg">+</button>
-                    </div>
-                    <div v-else class="flex space-x-2">
-                        <input v-model="newWorkerName" type="text" placeholder="姓名" class="w-full bg-white border-2 border-slate-400 rounded-xl p-2 text-sm">
-                        <button type="button" @click="confirmAddWorker" class="bg-slate-800 text-white px-3 rounded-xl text-xs">新增</button>
-                    </div>
+                    <label class="block text-sm text-[#CC5A50] font-black mb-1 flex justify-between items-center">
+                        <span>車工</span>
+                        <button type="button" @click="showWorkerModal = true" class="text-xs text-stone-400 font-bold hover:text-[#CC5A50]">名單管理</button>
+                    </label>
+                    <select v-model="form.worker" class="w-full bg-white border-2 border-[#EEDDCC] rounded-xl p-3 text-sm font-bold focus:border-[#CC5A50] outline-none text-stone-700 shadow-sm">
+                        <option v-for="w in workers" :key="w" :value="w">{{ w }}</option>
+                    </select>
                 </div>
             </div>
 
             <div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" v-for="item in items" :key="item.name" @click="form.item = item.name" 
-                            :class="['px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all', form.item === item.name ? item.activeClass : 'bg-white border-slate-200 text-slate-500']">
+                            :class="['px-5 py-2.5 rounded-xl text-sm font-bold border-2 transition-all', form.item === item.name ? item.activeClass : 'bg-white border-[#EEDDCC] text-stone-500 hover:bg-[#faeedd]']">
                         {{ item.name }}
                     </button>
                 </div>
             </div>
 
-            <hr class="border-slate-100 border-2">
+            <hr class="border-[#EEDDCC] border-2">
 
-            <div class="space-y-6 bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
+            <div class="space-y-6 bg-white p-4 rounded-2xl border-2 border-[#EEDDCC] shadow-sm">
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-base text-slate-800">打數</span>
+                        <span class="text-base font-black text-[#CC5A50]">打數</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.dozens" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
-                            <span class="text-sm text-slate-500">打</span>
+                            <input type="number" v-model.number="form.dozens" class="w-16 text-center text-lg font-bold bg-[#FDF9F1] border-2 border-[#EEDDCC] rounded-lg p-1 focus:border-[#CC5A50] text-stone-800">
+                            <span class="text-sm font-bold text-stone-500">打</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-5 gap-2">
-                        <button type="button" v-for="v in [15,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.dozens === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
+                        <button type="button" v-for="v in [15,30,36,42,48,50,78]" :key="v" @click="form.dozens = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.dozens === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-base text-slate-800">零星雙數</span>
+                        <span class="text-base font-black text-[#CC5A50]">零星雙數</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
-                            <span class="text-sm text-slate-500">雙</span>
+                            <input type="number" v-model.number="form.pairs" class="w-16 text-center text-lg font-bold bg-[#FDF9F1] border-2 border-[#EEDDCC] rounded-lg p-1 focus:border-[#CC5A50] text-stone-800">
+                            <span class="text-sm font-bold text-stone-500">雙</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-6 gap-2">
-                        <button type="button" v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.pairs === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">{{ v }}</button>
+                        <button type="button" v-for="v in [0,2,4,6,8,10]" :key="v" @click="form.pairs = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.pairs === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">{{ v }}</button>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-base text-slate-800">包數 (乘數)</span>
+                        <span class="text-base font-black text-[#CC5A50]">包數 (乘數)</span>
                         <div class="flex items-center space-x-1">
-                            <input type="number" v-model.number="form.packages" class="w-16 text-center text-lg font-bold bg-white border-2 border-slate-200 rounded-lg p-1 focus:border-slate-800">
-                            <span class="text-sm text-slate-500">包</span>
+                            <input type="number" v-model.number="form.packages" class="w-16 text-center text-lg font-bold bg-[#FDF9F1] border-2 border-[#EEDDCC] rounded-lg p-1 focus:border-[#CC5A50] text-stone-800">
+                            <span class="text-sm font-bold text-stone-500">包</span>
                         </div>
                     </div>
                     <div class="grid grid-cols-4 gap-2">
-                        <button type="button" v-for="v in [1,2,3,4,5,6,7,8]" :key="v" @click="form.packages = v" :class="['py-2 rounded-xl border-2 font-bold shadow-sm', form.packages === v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200']">x{{ v }}</button>
+                        <button type="button" v-for="v in [1,2,3,4,5,6,7,8]" :key="v" @click="form.packages = v" :class="['py-2 rounded-xl border-2 font-bold transition-colors', form.packages === v ? 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' : 'bg-[#FDF9F1] text-stone-600 border-[#EEDDCC] hover:bg-[#faeedd]']">x{{ v }}</button>
                     </div>
                 </div>
             </div> 
 
-            <div v-if="recentRecords.length" class="space-y-2 mt-4">
-                <div class="text-xs text-slate-400 font-bold tracking-widest flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>剛成功存入的紀錄
+            <div v-if="recentRecords.length" class="space-y-3 mt-6">
+                <div class="text-xs text-[#CC5A50] font-black tracking-widest flex items-center">
+                    <span class="w-2 h-2 bg-[#CC5A50] rounded-full mr-2"></span>剛存入的明細
                 </div>
-                <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
+                <div v-for="r in recentRecords" :key="r.id" class="bg-white p-3 rounded-xl border border-[#EEDDCC] shadow-sm flex justify-between items-center">
                     <div>
-                        <div class="text-xs font-bold text-slate-400">{{ r.worker }}</div>
-                        <div class="text-sm font-bold text-slate-800">{{ r.item }} ({{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }})</div>
+                        <div class="text-xs font-bold text-stone-400 mb-1">{{ r.worker }}</div>
+                        <div class="flex items-center space-x-2">
+                            <span :class="['px-2 py-0.5 rounded text-[10px] border font-black', getItemColor(r.item)]">{{ r.item }}</span>
+                            <span class="text-sm font-bold text-stone-600">{{ formatBreakdown(r) }}</span>
+                        </div>
                     </div>
-                    <div class="text-lg font-black text-slate-900">{{ formatTotal(r.totalPairs) }}</div>
+                    <div class="text-lg font-black text-stone-800">{{ formatTotal(r.totalPairs) }}</div>
                 </div>
             </div>
         </div>
 
-        <div v-show="currentTab === 'report'" class="p-5 pb-safe flex-1 overflow-y-auto bg-slate-50">
+        <div v-show="currentTab === 'report'" class="p-5 pb-safe-content flex-1 overflow-y-auto bg-[#FDF9F1]">
+            
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-black">{{ showSettled ? '歷史紀錄 (已結算)' : '未結算報表' }}</h2>
-                <button type="button" @click="showSettled = !showSettled" class="text-xs font-bold text-indigo-600 border-2 border-indigo-100 px-3 py-2 rounded-lg bg-white active:bg-indigo-50">
+                <h2 class="text-xl font-black text-[#CC5A50]">
+                    {{ showSettled ? '歷史紀錄 (已結算)' : '未結算報表' }}
+                </h2>
+                <button type="button" @click="toggleSettled" class="text-xs font-bold text-stone-500 border-2 border-stone-200 px-3 py-2 rounded-lg bg-white active:bg-stone-100 transition-colors">
                     {{ showSettled ? '返回未結算' : '查看歷史紀錄' }}
                 </button>
             </div>
 
-            <div v-if="displayGroups.length === 0" class="text-center py-20 text-slate-300 font-bold">目前無資料</div>
+            <div v-if="reportMode === 'list'">
+                <div v-if="workerDirectory.length === 0" class="text-center py-20 text-stone-300 font-bold bg-white rounded-2xl border-2 border-dashed border-[#EEDDCC]">
+                    目前沒有紀錄資料
+                </div>
+                
+                <div class="space-y-4">
+                    <div v-for="worker in workerDirectory" :key="worker.name" 
+                         @click="openWorkerDetail(worker.name)"
+                         class="bg-white p-5 rounded-2xl shadow-sm border-2 border-[#EEDDCC] flex justify-between items-start active:scale-95 transition-transform cursor-pointer">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-[#CC5A50] text-white flex items-center justify-center font-black mt-1">
+                                {{ worker.name.substring(0,1) }}
+                            </div>
+                            <div>
+                                <div class="font-bold text-lg text-stone-800">{{ worker.name }}</div>
+                                <div class="text-[10px] text-stone-400 mt-1">點擊查看對帳明細 ➔</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex flex-col gap-1">
+                            <div class="text-[10px] text-[#CC5A50] font-bold mb-1">分類總計</div>
+                            <div v-for="t in worker.itemTotals" :key="t.itemName" class="font-black text-sm text-stone-700">
+                                {{ t.itemName }}: {{ formatTotal(t.total) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-            <div v-for="group in displayGroups" :key="group.name" class="mb-6 bg-white rounded-2xl shadow-sm border-2 border-slate-100 overflow-hidden">
-                <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
-                    <span class="font-bold">{{ group.name }}</span>
-                    <span class="font-black text-lg bg-slate-700 px-3 py-1 rounded-lg">{{ formatTotal(group.totalPairs) }}</span>
-                </div>
-                <div v-for="r in group.list" :key="r.id" class="p-4 border-b border-slate-50 flex flex-col relative" :class="showSettled ? 'opacity-70 bg-slate-50' : ''">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-bold text-slate-400 mb-1">{{ r.date.substring(5) }}</span>
-                            <span class="text-base font-bold text-slate-800">{{ r.item }}</span>
+            <div v-if="reportMode === 'detail'">
+                
+                <button @click="reportMode = 'list'" class="flex items-center text-sm font-bold text-stone-500 mb-4 hover:text-[#CC5A50]">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+                    返回目錄
+                </button>
+
+                <div v-if="!showSettled">
+                    <div class="bg-[#CC5A50] rounded-t-2xl p-4 flex justify-between items-start shadow-md">
+                        <div>
+                            <div class="text-[#fceae8] text-xs font-bold mb-1">對帳單專屬頁面 (未結算)</div>
+                            <h3 class="text-3xl font-black text-white tracking-widest">{{ activeWorkerName }}</h3>
                         </div>
-                        <div class="text-right">
-                            <span class="text-lg font-black text-slate-900">{{ formatTotal(r.totalPairs) }}</span>
+                        <div class="text-right flex flex-col gap-1">
+                            <div class="text-[#fceae8] text-[10px] font-bold mb-1">未結總計</div>
+                            <div v-for="t in activeWorkerItemTotals" :key="t.itemName" class="text-white font-black text-base tracking-wide">
+                                {{ t.itemName }}: {{ formatTotal(t.total) }}
+                            </div>
                         </div>
                     </div>
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-50">
-                        <span class="text-xs font-bold text-slate-500">明細: {{ r.dozens }}打{{ r.pairs }}雙 x {{ r.packages }}包</span>
-                        <button type="button" @click="deleteRecord(r.id)" class="text-red-500 bg-red-50 px-3 py-1 rounded-lg text-xs font-bold active:bg-red-100">刪除</button>
+
+                    <div class="bg-white rounded-b-2xl shadow-md border-x-2 border-b-2 border-[#EEDDCC] overflow-hidden mb-6">
+                        <div v-if="activeWorkerData.length === 0" class="p-8 text-center text-stone-300 font-bold">無未結紀錄</div>
+                        
+                        <div v-for="day in activeWorkerData" :key="day.date" class="border-b-4 border-[#FDF9F1] last:border-0">
+                            <div class="bg-[#faf3e8] p-4 flex justify-between items-start border-b border-[#EEDDCC]">
+                                <span class="text-lg font-black text-[#CC5A50] tracking-wider pt-1">{{ day.date }}</span>
+                                <div class="text-right flex flex-col gap-1">
+                                    <span v-for="itemGroup in day.items" :key="itemGroup.itemName" class="text-sm font-black text-stone-800">
+                                        {{ itemGroup.itemName }}: {{ formatTotal(itemGroup.itemTotal) }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="p-3 space-y-4">
+                                <div v-for="itemGroup in day.items" :key="itemGroup.itemName" class="bg-white border-2 border-[#EEDDCC] rounded-xl overflow-hidden shadow-sm">
+                                    <div class="bg-[#FDF9F1] px-3 py-2 flex items-center border-b border-[#EEDDCC]">
+                                        <span :class="['px-3 py-1 rounded-md text-xs font-black border mr-2 shadow-sm', getItemColor(itemGroup.itemName)]">
+                                            {{ itemGroup.itemName }}
+                                        </span>
+                                    </div>
+                                    <div class="divide-y-2 divide-[#FDF9F1]">
+                                        <div v-for="entry in itemGroup.entries" :key="entry.id" class="px-3 py-3 flex justify-between items-center hover:bg-[#faf3e8]">
+                                            <div class="text-sm font-bold text-stone-600 pl-1">{{ formatBreakdown(entry) }}</div>
+                                            <div class="flex items-center space-x-3">
+                                                <span class="text-lg font-black text-stone-800">{{ formatTotal(entry.totalPairs) }}</span>
+                                                <button @click="deleteRecord(entry.id)" class="text-stone-300 hover:text-red-500 p-2 bg-stone-50 rounded-lg active:scale-90"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div v-if="!showSettled" class="p-4 bg-indigo-50 border-t border-indigo-100">
-                    <button type="button" @click="openSettle(group.name, group.list)" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all flex justify-center items-center">
-                        進行結算與隱藏
+
+                    <button @click="settleActiveWorker" class="w-full bg-[#CC5A50] text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95 text-xl tracking-widest">
+                        將「{{ activeWorkerName }}」帳目結算
                     </button>
                 </div>
+
+                <div v-else>
+                    <div v-if="activeWorkerSettledBatches.length === 0" class="text-center py-20 text-stone-300 font-bold bg-white rounded-2xl border-2 border-dashed border-[#EEDDCC]">無歷史結算紀錄</div>
+                    
+                    <div v-for="batch in activeWorkerSettledBatches" :key="batch.settlementId" class="mb-6 bg-white border-2 border-[#EEDDCC] rounded-2xl overflow-hidden shadow-md">
+                        <div class="bg-stone-700 text-white p-4 flex justify-between items-center">
+                            <div>
+                                <div class="text-[10px] text-stone-300 font-bold">結算歸檔時間</div>
+                                <div class="text-sm font-black">{{ batch.settledDate }}</div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button type="button" @click="undoSettlement(batch.settlementId)" class="bg-white text-stone-700 text-xs px-3 py-2 rounded-xl font-black shadow-md active:scale-90 transition-transform">
+                                    復原 ↩️
+                                </button>
+                                <button type="button" @click="deleteSettlement(batch.settlementId)" class="bg-red-500 text-white text-xs px-3 py-2 rounded-xl font-black shadow-md active:scale-90 transition-transform">
+                                    刪除 🗑️
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-[#FDF9F1] px-4 py-3 text-sm font-black text-[#CC5A50] flex flex-wrap gap-x-4 border-b border-[#EEDDCC]">
+                            <span v-for="bt in batch.batchTotals" :key="bt.itemName">
+                                {{ bt.itemName }}: {{ formatTotal(bt.total) }}
+                            </span>
+                        </div>
+
+                        <div v-for="day in batch.dates" :key="day.date" class="p-4 border-b border-[#EEDDCC] last:border-0">
+                            <div class="text-sm text-stone-500 font-bold mb-3 flex justify-between">
+                                <span>日期: {{ day.date }}</span>
+                            </div>
+                            <div class="space-y-3">
+                                <div v-for="itemGroup in day.items" :key="itemGroup.itemName" class="flex justify-between items-center pl-2">
+                                    <span :class="['px-3 py-1 rounded-md text-xs border font-black shadow-sm', getItemColor(itemGroup.itemName)]">{{ itemGroup.itemName }}</span>
+                                    <span class="font-black text-lg text-stone-800">{{ formatTotal(itemGroup.itemTotal) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
-        <div v-show="currentTab === 'input'" class="fixed bottom-[68px] left-0 right-0 max-w-md mx-auto p-4 bg-white/90 backdrop-blur-md border-t border-slate-100 z-30 shadow-[0_-15px_30px_-15px_rgba(0,0,0,0.1)]">
-            <button type="button" @click.prevent="saveRecord" class="w-full bg-indigo-600 text-white rounded-2xl flex flex-col items-center justify-center py-3 shadow-[0_4px_0_0_#4f46e5] btn-press transition-all relative">
-                <span class="text-2xl font-black tracking-widest mb-1">確 定 儲 存</span>
-                <span class="text-xs font-bold bg-indigo-800 px-3 py-1 rounded-full shadow-inner">
-                    本次總計：{{ currentDisplay }}
+        <div v-show="currentTab === 'input'" class="fixed left-0 right-0 max-w-md mx-auto p-4 bg-[#FDF9F1]/95 backdrop-blur-md border-t-2 border-[#EEDDCC] shadow-[0_-15px_30px_-15px_rgba(204,90,80,0.15)] z-50" style="bottom: calc(72px + env(safe-area-inset-bottom));">
+            <button type="button" @click.prevent="saveRecord" class="w-full bg-[#CC5A50] text-white rounded-2xl flex flex-col items-center justify-center py-3 shadow-[0_5px_0_0_#a84439] btn-press transition-all relative">
+                <span class="text-2xl font-black tracking-widest mb-1">確 定 存 檔</span>
+                <span class="text-xs font-bold bg-[#a84439] px-3 py-1 rounded-full shadow-inner">
+                    本次紀錄：{{ currentDisplay }}
                 </span>
             </button>
         </div>
 
-        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-slate-100 flex justify-around pb-safe z-40 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
-            <button type="button" @click="currentTab = 'input'; showSettled = false;" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'input' ? 'text-slate-900' : 'text-slate-300']">
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-[#EEDDCC] flex justify-around pb-[env(safe-area-inset-bottom)] z-40">
+            <button type="button" @click="currentTab = 'input'; reportMode = 'list';" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'input' ? 'text-[#CC5A50]' : 'text-stone-400']">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 <span class="text-[10px] font-bold tracking-widest">記帳</span>
             </button>
-            <button type="button" @click="currentTab = 'report'" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'report' ? 'text-slate-900' : 'text-slate-300']">
+            <button type="button" @click="currentTab = 'report'" :class="['flex-1 py-3 flex flex-col items-center space-y-1', currentTab === 'report' ? 'text-[#CC5A50]' : 'text-stone-400']">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                <span class="text-[10px] font-bold tracking-widest">報表</span>
+                <span class="text-[10px] font-bold tracking-widest">對帳單</span>
             </button>
         </nav>
 
-        <div v-if="settleModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+        <div v-if="showWorkerModal" class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col shadow-2xl">
-                <div class="p-5 bg-slate-800 text-white font-bold text-center text-lg">結算確認: {{ settleTarget.name }}</div>
-                <div class="p-3 bg-indigo-50 text-indigo-800 text-xs font-bold text-center border-b border-indigo-100">
-                    打勾的項目將會標記為「已結算」並隱藏。<br>若要留到下個月算，請取消打勾。
-                </div>
-                <div class="flex-1 overflow-y-auto p-2 max-h-[50vh]">
-                    <label v-for="r in settleTarget.list" :key="r.id" class="flex items-center space-x-3 p-3 hover:bg-slate-50 border-b border-slate-50 cursor-pointer">
-                        <input type="checkbox" v-model="settleSelected" :value="r.id" class="w-5 h-5 accent-indigo-600 rounded">
-                        <div class="flex-1">
-                            <div class="text-sm font-bold text-slate-800">{{ r.item }}</div>
-                            <div class="text-xs text-slate-400">{{ r.date.substring(5) }}</div>
+                <div class="p-5 bg-[#CC5A50] text-white font-bold text-center text-lg tracking-widest">管理車工名單</div>
+                <div class="p-4 space-y-3">
+                    <div class="flex space-x-2">
+                        <input v-model="newWorkerName" type="text" placeholder="輸入新車工姓名" class="w-full bg-white border-2 border-[#EEDDCC] rounded-xl p-2 text-sm outline-none focus:border-[#CC5A50] font-bold">
+                        <button type="button" @click="confirmAddWorker" class="bg-stone-800 text-white px-4 rounded-xl text-xs font-bold whitespace-nowrap btn-press">新增</button>
+                    </div>
+                    <div class="max-h-60 overflow-y-auto divide-y divide-[#EEDDCC] border-2 border-[#EEDDCC] rounded-xl p-2 bg-[#FDF9F1] no-scrollbar">
+                        <div v-for="w in workers" :key="w" class="flex justify-between items-center py-2.5 px-2 text-sm font-bold text-stone-700">
+                            <span>{{ w }}</span>
+                            <button type="button" @click="deleteWorker(w)" class="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg font-black shadow-sm active:scale-95 transition-transform">
+                                刪除清空
+                            </button>
                         </div>
-                        <div class="font-black text-slate-700">{{ formatTotal(r.totalPairs) }}</div>
-                    </label>
+                    </div>
                 </div>
-                <div class="p-4 flex space-x-3 border-t border-slate-100">
-                    <button type="button" @click="settleModal = false" class="flex-1 py-4 bg-slate-100 rounded-xl font-bold text-slate-500 active:bg-slate-200">取消</button>
-                    <button type="button" @click="confirmSettle" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold shadow-lg active:bg-indigo-700">確認結算 ({{ settleSelected.length }})</button>
+                <div class="p-4 border-t border-[#EEDDCC] bg-[#FDF9F1]">
+                    <button type="button" @click="showWorkerModal = false" class="w-full py-3 bg-white border-2 border-[#EEDDCC] hover:bg-[#faeedd] rounded-xl font-bold text-stone-600 transition-colors">完成關閉</button>
                 </div>
             </div>
         </div>
+
     </div>
 
     <script>
@@ -206,30 +315,48 @@
             setup() {
                 const currentTab = ref('input');
                 const showSettled = ref(false);
+                const reportMode = ref('list'); 
+                const activeWorkerName = ref('');
+                const toastMsg = ref('');
+                const showWorkerModal = ref(false);
+
+                const itemOrder = ['襪子', '手套', '寬口襪', '其他'];
+
+                const showToast = (msg) => {
+                    toastMsg.value = msg;
+                    setTimeout(() => toastMsg.value = '', 1500); 
+                };
 
                 let initWorkers = ['永靖劉小姐', '社頭王阿姨'];
                 try {
-                    const savedW = localStorage.getItem('litepro_workers_v5');
+                    const savedW = localStorage.getItem('litepro_workers_v7');
                     if (savedW) initWorkers = JSON.parse(savedW);
                 } catch(e) {}
                 const workers = ref(initWorkers);
                 
                 let initRecords = [];
                 try {
-                    const savedR = localStorage.getItem('litepro_records_v5');
+                    const savedR = localStorage.getItem('litepro_records_v7');
                     if (savedR) initRecords = JSON.parse(savedR);
                 } catch(e) {}
                 const records = ref(initRecords);
 
-                watch(workers, (newVal) => localStorage.setItem('litepro_workers_v5', JSON.stringify(newVal)), { deep: true });
-                watch(records, (newVal) => localStorage.setItem('litepro_records_v5', JSON.stringify(newVal)), { deep: true });
+                watch(workers, (newVal) => localStorage.setItem('litepro_workers_v7', JSON.stringify(newVal)), { deep: true });
+                watch(records, (newVal) => localStorage.setItem('litepro_records_v7', JSON.stringify(newVal)), { deep: true });
                 
                 const items = [
-                    { name: '襪子', activeClass: 'bg-indigo-600 text-white border-indigo-600 shadow-md' },
-                    { name: '手套', activeClass: 'bg-emerald-600 text-white border-emerald-600 shadow-md' },
-                    { name: '寬口襪', activeClass: 'bg-amber-600 text-white border-amber-600 shadow-md' },
-                    { name: '其他', activeClass: 'bg-slate-700 text-white border-slate-700 shadow-md' }
+                    { name: '襪子', activeClass: 'bg-[#CC5A50] text-white border-[#CC5A50] shadow-md' },
+                    { name: '手套', activeClass: 'bg-[#d87c73] text-white border-[#d87c73] shadow-md' },
+                    { name: '寬口襪', activeClass: 'bg-[#e49b56] text-white border-[#e49b56] shadow-md' },
+                    { name: '其他', activeClass: 'bg-stone-500 text-white border-stone-500 shadow-md' }
                 ];
+
+                const getItemColor = (name) => {
+                    if (name === '襪子') return 'bg-red-50 text-red-700 border-red-200';
+                    if (name === '手套') return 'bg-orange-50 text-orange-700 border-orange-200';
+                    if (name === '寬口襪') return 'bg-amber-50 text-amber-700 border-amber-200';
+                    return 'bg-stone-100 text-stone-700 border-stone-300';
+                };
 
                 const getToday = () => {
                     const d = new Date();
@@ -242,15 +369,24 @@
                     item: '襪子', dozens: 0, pairs: 0, packages: 1
                 });
 
-                const isAddingWorker = ref(false);
                 const newWorkerName = ref('');
                 const confirmAddWorker = () => {
                     const name = newWorkerName.value.trim();
                     if (name && !workers.value.includes(name)) {
                         workers.value.push(name);
                         form.value.worker = name;
+                        showToast(`✅ 已新增車工 ${name}`);
                     }
-                    newWorkerName.value = ''; isAddingWorker.value = false;
+                    newWorkerName.value = '';
+                };
+
+                const deleteWorker = (name) => {
+                    if(confirm(`確定要將車工「${name}」從名單中刪除嗎？\n\n⚠️ 按「確定」將會連同他/她的【所有未結與歷史紀錄】一併清空不可復原！`)) {
+                        workers.value = workers.value.filter(w => w !== name);
+                        records.value = records.value.filter(r => r.worker !== name);
+                        if (form.value.worker === name) form.value.worker = workers.value[0] || '';
+                        showToast(`🗑️ 已刪除車工 ${name} 及所有紀錄`);
+                    }
                 };
 
                 const formatTotal = (total) => {
@@ -262,6 +398,15 @@
                     return `${d} 打 ${p} 雙`;
                 };
 
+                const formatBreakdown = (r) => {
+                    let text = '';
+                    if (r.dozens > 0) text += `${r.dozens}打`;
+                    if (r.pairs > 0) text += `${r.pairs}雙`;
+                    if (text === '') text = '0打';
+                    if (r.packages > 1) text += ` x ${r.packages}包`;
+                    return text;
+                };
+
                 const saveRecord = () => {
                     const d = Number(form.value.dozens) || 0;
                     const p = Number(form.value.pairs) || 0;
@@ -269,10 +414,10 @@
                     const total = ((d * 12) + p) * pk;
 
                     if (total === 0) { 
-                        alert('⚠️ 數量不能為零，請輸入打數或雙數！'); 
+                        showToast('⚠️ 請輸入打數或雙數！'); 
                         return; 
                     }
-                    
+
                     records.value.unshift({
                         id: Date.now(),
                         date: String(form.value.date),
@@ -282,62 +427,165 @@
                         status: 'pending', timestamp: Date.now()
                     });
                     
-                    form.value.dozens = 0; 
-                    form.value.pairs = 0; 
-                    form.value.packages = 1;
-                    
-                    alert('✅ 紀錄已確定存檔！');
+                    form.value.dozens = 0; form.value.pairs = 0; form.value.packages = 1;
+                    showToast('✅ 紀錄已存檔');
                 };
 
                 const deleteRecord = (id) => {
-                    if (confirm('確定要刪除這筆紀錄嗎？')) {
-                        records.value = records.value.filter(r => r.id !== id);
-                        alert('🗑️ 已刪除');
-                    }
+                    records.value = records.value.filter(r => r.id !== id);
+                    showToast('🗑️ 明細已刪除');
                 };
 
-                const displayGroups = computed(() => {
-                    const target = showSettled.value ? 'settled' : 'pending';
-                    const groups = {};
-                    records.value.filter(r => r.status === target || (!r.status && target === 'pending')).forEach(r => {
-                        const workerName = r.worker || '未命名';
-                        if (!groups[workerName]) groups[workerName] = { name: workerName, totalPairs: 0, list: [] };
-                        groups[workerName].totalPairs += r.totalPairs;
-                        groups[workerName].list.push(r);
+                const toggleSettled = () => {
+                    showSettled.value = !showSettled.value;
+                    reportMode.value = 'list'; 
+                };
+
+                const workerDirectory = computed(() => {
+                    const targetStatus = showSettled.value ? 'settled' : 'pending';
+                    const map = {};
+                    records.value.filter(r => r.status === targetStatus).forEach(r => {
+                        const w = r.worker;
+                        if (!map[w]) map[w] = { name: w, totalPairs: 0, itemsMap: {} };
+                        map[w].totalPairs += r.totalPairs;
+                        if (!map[w].itemsMap[r.item]) map[w].itemsMap[r.item] = 0;
+                        map[w].itemsMap[r.item] += r.totalPairs;
                     });
-                    return Object.values(groups);
+                    
+                    return Object.values(map).map(w => {
+                        const itemTotals = Object.keys(w.itemsMap).map(k => ({
+                            itemName: k, total: w.itemsMap[k]
+                        })).sort((a, b) => itemOrder.indexOf(a.itemName) - itemOrder.indexOf(b.itemName)); 
+                        return { ...w, itemTotals };
+                    });
                 });
 
-                const settleModal = ref(false);
-                const settleTarget = ref({ name: '', list: [] });
-                const settleSelected = ref([]);
-                
-                const openSettle = (name, list) => {
-                    settleTarget.value = { name, list };
-                    settleSelected.value = list.map(r => r.id); 
-                    settleModal.value = true;
+                const openWorkerDetail = (name) => {
+                    activeWorkerName.value = name;
+                    reportMode.value = 'detail';
                 };
 
-                const confirmSettle = () => {
-                    if(settleSelected.value.length === 0) { alert('⚠️ 請勾選項目'); return; }
+                const activeWorkerItemTotals = computed(() => {
+                    if (!activeWorkerName.value) return [];
+                    const myRecords = records.value.filter(r => r.worker === activeWorkerName.value && r.status === 'pending');
+                    const map = {};
+                    myRecords.forEach(r => {
+                        if (!map[r.item]) map[r.item] = 0;
+                        map[r.item] += r.totalPairs;
+                    });
+                    return Object.keys(map).map(k => ({ itemName: k, total: map[k] }))
+                        .sort((a, b) => itemOrder.indexOf(a.itemName) - itemOrder.indexOf(b.itemName));
+                });
+
+                const activeWorkerData = computed(() => {
+                    if (!activeWorkerName.value) return [];
+                    const myRecords = records.value.filter(r => r.worker === activeWorkerName.value && r.status === 'pending');
                     
+                    const dateMap = {};
+                    myRecords.forEach(r => {
+                        if (!dateMap[r.date]) dateMap[r.date] = { date: r.date, dateTotal: 0, itemsMap: {} };
+                        dateMap[r.date].dateTotal += r.totalPairs;
+
+                        if (!dateMap[r.date].itemsMap[r.item]) {
+                            dateMap[r.date].itemsMap[r.item] = { itemName: r.item, itemTotal: 0, entries: [] };
+                        }
+                        dateMap[r.date].itemsMap[r.item].itemTotal += r.totalPairs;
+                        dateMap[r.date].itemsMap[r.item].entries.push(r);
+                    });
+
+                    return Object.values(dateMap).map(day => {
+                        const sortedItems = Object.values(day.itemsMap).sort((a, b) => itemOrder.indexOf(a.itemName) - itemOrder.indexOf(b.itemName));
+                        return { date: day.date, dateTotal: day.dateTotal, items: sortedItems };
+                    }).sort((a, b) => b.date.localeCompare(a.date));
+                });
+
+                const activeWorkerSettledBatches = computed(() => {
+                    if (!activeWorkerName.value) return [];
+                    const mySettled = records.value.filter(r => r.worker === activeWorkerName.value && r.status === 'settled');
+
+                    const batchMap = {};
+                    mySettled.forEach(r => {
+                        const bid = r.settlementId || 'old_batch';
+                        const bDate = r.settledDate || '歷史對帳單';
+                        if (!batchMap[bid]) {
+                            batchMap[bid] = { settlementId: bid, settledDate: bDate, itemsTotal: {}, datesMap: {} };
+                        }
+                        if (!batchMap[bid].itemsTotal[r.item]) batchMap[bid].itemsTotal[r.item] = 0;
+                        batchMap[bid].itemsTotal[r.item] += r.totalPairs;
+
+                        if (!batchMap[bid].datesMap[r.date]) {
+                            batchMap[bid].datesMap[r.date] = { date: r.date, dateTotal: 0, itemsMap: {} };
+                        }
+                        batchMap[bid].datesMap[r.date].dateTotal += r.totalPairs;
+
+                        if (!batchMap[bid].datesMap[r.date].itemsMap[r.item]) {
+                            batchMap[bid].datesMap[r.date].itemsMap[r.item] = { itemName: r.item, itemTotal: 0 };
+                        }
+                        batchMap[bid].datesMap[r.date].itemsMap[r.item].itemTotal += r.totalPairs;
+                    });
+
+                    return Object.values(batchMap).map(batch => {
+                        const batchTotals = Object.keys(batch.itemsTotal).map(k => ({ itemName: k, total: batch.itemsTotal[k] }))
+                            .sort((a, b) => itemOrder.indexOf(a.itemName) - itemOrder.indexOf(b.itemName)); 
+
+                        const datesArray = Object.values(batch.datesMap).map(day => {
+                            const itemsArray = Object.values(day.itemsMap).sort((a, b) => itemOrder.indexOf(a.itemName) - itemOrder.indexOf(b.itemName)); 
+                            return { date: day.date, dateTotal: day.dateTotal, items: itemsArray };
+                        }).sort((a, b) => b.date.localeCompare(a.date));
+
+                        return { settlementId: batch.settlementId, settledDate: batch.settledDate, batchTotals, dates: datesArray };
+                    }).sort((a, b) => b.settledDate.localeCompare(a.settledDate));
+                });
+
+                const settleActiveWorker = () => {
+                    const now = new Date();
+                    const settledString = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                    const uniqueId = 'batch_' + Date.now();
+
                     records.value = records.value.map(r => {
-                        if(settleSelected.value.includes(r.id)) {
-                            return { ...r, status: 'settled', settledDate: new Date().toISOString() };
+                        if (r.worker === activeWorkerName.value && r.status === 'pending') {
+                            return { ...r, status: 'settled', settlementId: uniqueId, settledDate: settledString };
                         }
                         return r;
                     });
-                    
-                    settleModal.value = false;
-                    alert('🎉 結算完成！資料已隱藏至歷史區。');
+                    reportMode.value = 'list'; 
+                    showToast(`🎉 已成功結算歸檔！`);
+                };
+
+                const undoSettlement = (sid) => {
+                    records.value = records.value.map(r => {
+                        // 相容舊版資料的復原邏輯
+                        if (r.settlementId === sid || (sid === 'old_batch' && r.worker === activeWorkerName.value && r.status === 'settled' && !r.settlementId)) {
+                            const { settlementId, settledDate, ...rest } = r; 
+                            return { ...rest, status: 'pending' }; 
+                        }
+                        return r;
+                    });
+                    reportMode.value = 'list'; 
+                    showToast('↩️ 點錯的那次結算已成功退回未結算！');
+                };
+
+                // 核心功能：強制刪除該歷史批次
+                const deleteSettlement = (sid) => {
+                    if(confirm('⚠️ 確定要「永久刪除」這筆歷史結算嗎？\n刪除後無法復原！')) {
+                        if (sid === 'old_batch') {
+                            // 刪除沒有批次號碼的舊版紀錄
+                            records.value = records.value.filter(r => !(r.worker === activeWorkerName.value && r.status === 'settled' && !r.settlementId));
+                        } else {
+                            // 刪除新版的批次紀錄
+                            records.value = records.value.filter(r => r.settlementId !== sid);
+                        }
+                        showToast('🗑️ 歷史結算單已徹底刪除');
+                    }
                 };
 
                 return {
-                    currentTab, showSettled,
-                    workers, records, items, form, isAddingWorker, newWorkerName,
-                    confirmAddWorker, formatTotal, saveRecord, deleteRecord,
-                    displayGroups, settleModal, settleTarget, settleSelected, openSettle, confirmSettle,
-                    recentRecords: computed(() => records.value.slice(0, 3)),
+                    currentTab, showSettled, toastMsg, getItemColor, formatBreakdown,
+                    workers, records, items, form, newWorkerName, showWorkerModal,
+                    confirmAddWorker, deleteWorker, formatTotal, saveRecord, deleteRecord,
+                    reportMode, workerDirectory, openWorkerDetail, activeWorkerName, 
+                    activeWorkerData, activeWorkerItemTotals, activeWorkerSettledBatches, settleActiveWorker, toggleSettled, undoSettlement, deleteSettlement,
+                    recentRecords: computed(() => records.value.filter(r=>r.status==='pending').slice(0, 3)),
                     currentDisplay: computed(() => formatTotal((((Number(form.value.dozens)||0) * 12) + (Number(form.value.pairs)||0)) * (Number(form.value.packages)||1)))
                 };
             }
